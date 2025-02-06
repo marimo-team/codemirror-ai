@@ -2,7 +2,7 @@ import { EditorView } from "@codemirror/view";
 
 // Theme for AI features
 export const aiTheme = EditorView.baseTheme({
-  ".cm-tooltip.cm-ai-tooltip": {
+  ".cm-ai-tooltip": {
     userSelect: "none",
     pointerEvents: "auto",
     fontFamily: "system-ui, -apple-system, sans-serif",

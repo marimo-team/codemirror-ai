@@ -251,7 +251,7 @@ const selectionPlugin = ViewPlugin.fromClass(
         const options = view.state.facet(optionsFacet);
         const keymaps = { ...defaultKeymaps, ...options.keymaps };
         this.tooltip = document.createElement("div");
-        this.tooltip.className = "cm-tooltip cm-ai-tooltip";
+        this.tooltip.className = "cm-ai-tooltip";
         this.tooltip.innerHTML = `<span>Edit <span class="hotkey">${formatKeymap(keymaps.showInput)}</span></span>`;
         this.tooltip.style.cursor = "pointer";
         this.tooltip.addEventListener("click", (evt) => {
