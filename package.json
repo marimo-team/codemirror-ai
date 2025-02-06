@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@marimo-team/codemirror-ai",
+  "version": "0.1.2",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "CodeMirror plugin for Model Context Provider",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marimo-team/codemirror-ai"
+  },
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check --write",
+    "test": "vitest",
+    "demo": "vite build",
+    "build": "tsc",
+    "prepublishOnly": "pnpm run typecheck && pnpm run test && pnpm run build",
+    "release": "pnpm version",
+    "pre-commit": "lint-staged"
+  },
+  "keywords": [
+    "codemirror",
+    "codemirror-plugin",
+    "ai"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@codemirror/state": "^6",
+    "@codemirror/view": "^6"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@codemirror/lang-python": "^6.1.7",
+    "@codemirror/view": "^6.36.2",
+    "@vitest/coverage-v8": "3.0.5",
+    "codemirror": "^6.0.1",
+    "husky": "^9.1.7",
+    "jsdom": "^26.0.0",
+    "lint-staged": "^15.4.3",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "vitest": "^3.0.5"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "engines": {
+    "node": "*"
+  },
+  "module": "./dist/index.js",
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "biome check --write",
+      "biome format --write",
+      "vitest related --run"
+    ]
+  }
+}

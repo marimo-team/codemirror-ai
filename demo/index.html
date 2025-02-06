@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>codemirror-ai demo</title>
+    <meta name="description" content="A CodeMirror AI extension" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body>
+    <main class="max-w-3xl mx-auto px-4 py-8">
+      <h1 class="text-4xl font-bold mb-4">
+        <a href="https://github.com/marimo-team/codemirror-ai" class="text-blue-600 hover:text-blue-800"
+          >codemirror-ai</a
+        >
+      </h1>
+      <p class="mb-2">by <a href="https://marimo.io/" class="text-blue-600 hover:text-blue-800">marimo</a></p>
+      <p class="mb-2 text-gray-700">
+        codemirror-ai is an extension for
+        <a href="https://codemirror.net/" class="text-blue-600 hover:text-blue-800"> CodeMirror 6 </a> that adds
+        AI features like inline Cmd+L to edit code.
+      </p>
+      <div class="border rounded-lg bg-white shadow-sm">
+        <div id="editor" class="min-h-[400px] h-full"></div>
+      </div>
+    </main>
+    <script type="module" src="./index.ts"></script>
+  </body>
+</html>
