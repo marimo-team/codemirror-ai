@@ -4,10 +4,9 @@ import { EditorView } from "@codemirror/view";
 export const aiTheme = EditorView.baseTheme({
   ".cm-ai-tooltip": {
     userSelect: "none",
-    pointerEvents: "auto",
+    pointerEvents: "none",
     fontFamily: "system-ui, -apple-system, sans-serif",
     position: "absolute",
-    cursor: "pointer",
     right: "8px",
     padding: "4px 8px",
     borderRadius: "4px",
@@ -16,6 +15,13 @@ export const aiTheme = EditorView.baseTheme({
     color: "#ffffff",
     border: "1px solid transparent",
     boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+    zIndex: "999",
+    "& > span": {
+      pointerEvents: "auto",
+      cursor: "pointer",
+      display: "inline-block",
+      padding: "2px",
+    },
     "&:hover": {
       backgroundColor: "#1177bb",
     },

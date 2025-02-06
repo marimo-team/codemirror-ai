@@ -132,10 +132,15 @@ export function aiExtension(opts: AiExtensionOptions): Extension[] {
         const { from, to } = update.state.selection.main;
         const inputStateValue = update.state.field(inputState);
         const completionStateValue = update.state.field(completionState);
-        // Only show tooltip if there's a selection and no input or completion is active
-        update.view.dispatch({
-          effects: showTooltip.of(from !== to && !inputStateValue.show && !completionStateValue),
-        });
+        const tooltipVisible = update.state.field(tooltipState);
+        const shouldShow = from !== to && !inputStateValue.show && !completionStateValue;
+
+        // Only dispatch if tooltip state needs to change
+        if (tooltipVisible !== shouldShow) {
+          update.view.dispatch({
+            effects: showTooltip.of(shouldShow),
+          });
+        }
       }
     }),
     // Decoration for the new code (green)
@@ -203,8 +208,18 @@ const selectionPlugin = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate) {
+      const prevDoc = update.startState.doc;
+      const currDoc = update.state.doc;
+      const prevSel = update.startState.selection.main;
+      const currSel = update.state.selection.main;
+
+      const prevFromLine = prevDoc.lineAt(prevSel.from).number;
+      const currFromLine = currDoc.lineAt(currSel.from).number;
+
+      const lineFromChanged = prevFromLine !== currFromLine;
+
       if (
-        update.selectionSet ||
+        lineFromChanged ||
         update.docChanged ||
         update.viewportChanged ||
         update.transactions.some((tr) => tr.effects.some((e) => e.is(showTooltip)))
@@ -253,8 +268,7 @@ const selectionPlugin = ViewPlugin.fromClass(
         this.tooltip = document.createElement("div");
         this.tooltip.className = "cm-ai-tooltip";
         this.tooltip.innerHTML = `<span>Edit <span class="hotkey">${formatKeymap(keymaps.showInput)}</span></span>`;
-        this.tooltip.style.cursor = "pointer";
-        this.tooltip.addEventListener("click", (evt) => {
+        this.tooltip.querySelector("span")?.addEventListener("click", (evt) => {
           evt.stopPropagation();
           showAiEditInput(view);
         });

@@ -55,6 +55,9 @@ export const tooltipState = StateField.define<boolean>({
     }
     return value;
   },
+  compare(a, b) {
+    return a === b;
+  },
 });
 
 // State effect to show/hide the input
