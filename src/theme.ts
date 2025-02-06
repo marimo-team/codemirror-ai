@@ -8,7 +8,7 @@ export const aiTheme = EditorView.baseTheme({
     fontFamily: "system-ui, -apple-system, sans-serif",
     position: "absolute",
     right: "8px",
-    padding: "4px 8px",
+    padding: "2px 6px",
     borderRadius: "4px",
     fontSize: "12px",
     backgroundColor: "#0E639C",

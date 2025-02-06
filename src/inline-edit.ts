@@ -449,7 +449,6 @@ function formatKeymap(keymap: string) {
 // Input widget
 class InputWidget extends WidgetType {
   private abortController: AbortController | null = null;
-  private debounceTimeout: number | null = null;
 
   constructor(private complete: CompleteFunction) {
     super();
@@ -575,28 +574,28 @@ class InputWidget extends WidgetType {
       }
     };
 
-    // Debounced input handling
-    const debouncedHandleInput = () => {
-      if (this.debounceTimeout) {
-        clearTimeout(this.debounceTimeout);
+    // Handle input changes
+    let lastValue = "";
+    const handleInput = () => {
+      const value = input.value.trim();
+      if (value === lastValue) return;
+      lastValue = value;
+
+      helpInfo.textContent = "";
+      if (value) {
+        const generateBtn = document.createElement("button");
+        generateBtn.className = "cm-ai-generate-btn";
+        generateBtn.textContent = "⏎ Generate";
+        generateBtn.setAttribute("aria-label", "Generate code");
+        generateBtn.addEventListener("click", handleSubmit);
+        helpInfo.appendChild(generateBtn);
+      } else {
+        const escText = document.createTextNode("Esc to close");
+        helpInfo.appendChild(escText);
       }
-      this.debounceTimeout = window.setTimeout(() => {
-        helpInfo.textContent = "";
-        if (input.value.trim()) {
-          const generateBtn = document.createElement("button");
-          generateBtn.className = "cm-ai-generate-btn";
-          generateBtn.textContent = "⏎ Generate";
-          generateBtn.setAttribute("aria-label", "Generate code");
-          generateBtn.addEventListener("click", handleSubmit);
-          helpInfo.appendChild(generateBtn);
-        } else {
-          const escText = document.createTextNode("Esc to close");
-          helpInfo.appendChild(escText);
-        }
-      }, options.inputDebounceTime);
     };
 
-    input.addEventListener("input", debouncedHandleInput);
+    input.addEventListener("input", handleInput);
 
     input.addEventListener("keydown", async (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
@@ -617,10 +616,6 @@ class InputWidget extends WidgetType {
   }
 
   private cleanup() {
-    if (this.debounceTimeout) {
-      clearTimeout(this.debounceTimeout);
-      this.debounceTimeout = null;
-    }
     this.abortController?.abort();
     this.abortController = null;
   }
