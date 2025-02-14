@@ -162,14 +162,27 @@ export function aiExtension(opts: AiExtensionOptions): Extension[] {
       const decorations: Array<Range<Decoration>> = [];
 
       if (inputStateValue.show) {
-        for (let i = inputStateValue.from; i < inputStateValue.to; i++) {
-          decorations.push(Decoration.line({ class: "cm-ai-selection" }).range(i));
-          if (i === inputStateValue.from) {
+        const lineStart = state.doc.lineAt(inputStateValue.from).number;
+        let lineEnd = state.doc.lineAt(inputStateValue.to).number;
+
+        // Handle single-line edits by allowing the loop to run at least
+        // once.
+        if (lineEnd === lineStart) lineEnd++;
+
+        // Iterate in whole lines, but get the pos of each line's first
+        // character for each, because that's what ranges want.
+        for (let line = lineStart; line < lineEnd; line++) {
+          const pos = state.doc.line(line).from;
+          decorations.push(Decoration.line({ class: "cm-ai-selection" }).range(pos));
+
+          // This needs to be interleaved because CodeMirror wants
+          // the decorations sorted
+          if (line === lineStart) {
             decorations.push(
               Decoration.widget({
                 widget: new InputWidget(opts.prompt),
                 side: -1,
-              }).range(inputStateValue.from),
+              }).range(pos),
             );
           }
         }
