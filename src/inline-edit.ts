@@ -603,11 +603,7 @@ class InputWidget extends WidgetType {
         e.preventDefault();
         await handleSubmit();
       } else if (e.key === "Escape") {
-        this.cleanup();
-        view.dispatch({
-          effects: [showInput.of({ show: false, from: 0, to: 0 }), setLoading.of(false)],
-        });
-        view.focus();
+        onCancel();
       }
     });
 
