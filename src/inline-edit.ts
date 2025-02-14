@@ -481,25 +481,26 @@ class InputWidget extends WidgetType {
     loadingIndicator.setAttribute("aria-live", "polite");
     loadingIndicator.textContent = "Generating";
 
-    const cancelButton = document.createElement("button");
-    cancelButton.className = "cm-ai-cancel-btn";
-    cancelButton.textContent = "Cancel";
-    cancelButton.setAttribute("aria-label", "Cancel code generation");
-    cancelButton.addEventListener("click", () => {
+    const onCancel = () => {
       this.cleanup();
       view.dispatch({
         effects: [showInput.of({ show: false, from: 0, to: 0 }), setLoading.of(false)],
       });
       view.focus();
-    });
+    };
+
+    const cancelButton = document.createElement("button");
+    cancelButton.className = "cm-ai-cancel-btn";
+    cancelButton.textContent = "Cancel";
+    cancelButton.setAttribute("aria-label", "Cancel code generation");
+    cancelButton.addEventListener("click", onCancel);
 
     loadingContainer.append(cancelButton, loadingIndicator);
 
-    const helpInfo = document.createElement("div");
+    const helpInfo = document.createElement("button");
     helpInfo.className = "cm-ai-help-info";
-    helpInfo.setAttribute("role", "status");
-    helpInfo.setAttribute("aria-live", "polite");
     helpInfo.textContent = "Esc to close";
+    helpInfo.addEventListener("click", onCancel);
 
     const isLoading = view.state.field(loadingState);
     if (isLoading) {

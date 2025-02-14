@@ -51,9 +51,14 @@ export const aiTheme = EditorView.baseTheme({
     paddingLeft: "10px",
     height: "18px",
     color: "light-dark(rgb(109, 117, 125), rgb(170, 170, 170))",
+    display: "block",
+    marginRight: "auto",
     // "@media (prefers-color-scheme: dark)": {
     // 	color: "rgb(170, 170, 170)",
     // },
+  },
+  ".cm-ai-help-info:hover": {
+    color: "light-dark(rgb(89, 97, 105), rgb(190, 190, 190))",
   },
   ".cm-ai-generate-btn": {
     background: "#0E639C",
