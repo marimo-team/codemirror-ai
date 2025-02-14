@@ -558,7 +558,6 @@ class InputWidget extends WidgetType {
             }),
             setLoading.of(false),
           ],
-          selection: EditorSelection.cursor(state.to),
         });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
