@@ -30,7 +30,7 @@ export const aiTheme = EditorView.baseTheme({
     display: "flex",
     flexDirection: "column",
     gap: "4px",
-    width: "calc(100% + 7px)",
+    width: "min(calc(100% + 7px), 500px)",
     padding: "5px 5px",
     margin: "0 -6px",
     backgroundColor: "light-dark(rgb(241, 243, 245), rgb(40, 40, 40))",
