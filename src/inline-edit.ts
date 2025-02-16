@@ -462,14 +462,19 @@ function formatKeymap(keymap: string) {
 // Input widget
 class InputWidget extends WidgetType {
   private abortController: AbortController | null = null;
+  private dom: HTMLElement | null = null;
+  private input: HTMLInputElement | null = null;
 
   constructor(private complete: CompleteFunction) {
     super();
   }
 
   toDOM(view: EditorView) {
+    if (this.dom) return this.dom;
+
     const options = view.state.facet(optionsFacet);
     const inputContainer = document.createElement("div");
+    this.dom = inputContainer;
     inputContainer.className = "cm-ai-input-container";
 
     const form = document.createElement("form");
@@ -479,6 +484,7 @@ class InputWidget extends WidgetType {
     form.addEventListener("submit", (e) => e.preventDefault());
 
     const input = document.createElement("input");
+    this.input = input;
     input.className = "cm-ai-input";
     input.placeholder = "Editing instructions...";
     input.setAttribute("aria-label", "AI editing instructions");
@@ -523,8 +529,12 @@ class InputWidget extends WidgetType {
       loadingContainer.classList.add("hidden");
     }
 
-    // Focus management
-    requestAnimationFrame(() => input.focus());
+    // Focus if not the first render
+    if (!this.input) {
+      requestAnimationFrame(() => {
+        input.focus();
+      });
+    }
 
     const handleSubmit = async () => {
       const state = view.state.field(inputState);
@@ -624,9 +634,18 @@ class InputWidget extends WidgetType {
     return inputContainer;
   }
 
+  updateDOM(dom: HTMLElement, _view: EditorView): boolean {
+    // Keep existing DOM, just update state if needed
+    this.dom = dom;
+    this.input = dom.querySelector(".cm-ai-input");
+    return true;
+  }
+
   private cleanup() {
     this.abortController?.abort();
     this.abortController = null;
+    this.dom = null;
+    this.input = null;
   }
 
   destroy() {
