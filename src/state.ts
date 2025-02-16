@@ -28,8 +28,13 @@ export const optionsFacet = Facet.define<AiOptions, AiOptions>({
 
 export interface InputState {
   show: boolean;
-  from: number;
-  to: number;
+  lineFrom: number;
+  lineTo: number;
+}
+
+export interface InputValueState {
+  shouldFocus: boolean;
+  inputValue: string;
 }
 
 export interface CompletionState {
@@ -66,12 +71,35 @@ export const showInput = StateEffect.define<InputState>();
 // State field to manage the input visibility and position
 export const inputState = StateField.define<InputState>({
   create() {
-    return { show: false, from: 0, to: 0 };
+    return { show: false, lineFrom: 0, lineTo: 0 };
   },
   update(value, tr) {
     for (const e of tr.effects) {
       if (e.is(showInput)) {
         return e.value;
+      }
+    }
+    return value;
+  },
+});
+
+// State effect to set the input value
+export const setInputValue = StateEffect.define<string>();
+// State effect to set the input focus
+export const setInputFocus = StateEffect.define<boolean>();
+
+// State field for the input focus and value
+export const inputValueState = StateField.define<InputValueState>({
+  create() {
+    return { shouldFocus: false, inputValue: "" };
+  },
+  update(value, tr) {
+    for (const e of tr.effects) {
+      if (e.is(setInputValue)) {
+        return { shouldFocus: value.shouldFocus, inputValue: e.value };
+      }
+      if (e.is(setInputFocus)) {
+        return { shouldFocus: e.value, inputValue: value.inputValue };
       }
     }
     return value;
