@@ -20,8 +20,11 @@ import {
   completionState,
   defaultKeymaps,
   inputState,
+  inputValueState,
   loadingState,
   optionsFacet,
+  setInputFocus,
+  setInputValue,
   setLoading,
   showCompletion,
   showInput,
@@ -110,6 +113,7 @@ export function aiExtension(opts: AiExtensionOptions): Extension[] {
     optionsFacet.of(options),
     tooltipState,
     inputState,
+    inputValueState,
     completionState,
     loadingState,
     selectionPlugin,
@@ -126,6 +130,39 @@ export function aiExtension(opts: AiExtensionOptions): Extension[] {
         { key: defaultKeymaps.rejectEdit, run: rejectAiEdit },
       ]),
     ]),
+    // Track line shifts
+    EditorView.updateListener.of((update) => {
+      const inputStateValue = update.state.field(inputState);
+      if (!inputStateValue.show || !update.docChanged) return;
+
+      let { lineFrom, lineTo } = inputStateValue;
+      let shifted = false;
+
+      update.changes.iterChanges((fromA, _toA, fromB, toB) => {
+        const changePosLine = update.state.doc.lineAt(fromA).number;
+
+        if (changePosLine < lineFrom) {
+          // Changes before selection - shift both bounds
+          const linesAdded =
+            update.state.doc.lineAt(toB).number - update.state.doc.lineAt(fromB).number;
+          lineFrom += linesAdded;
+          lineTo += linesAdded;
+          shifted = true;
+        } else if (changePosLine <= lineTo) {
+          // Changes inside selection - adjust end bound
+          const linesAdded =
+            update.state.doc.lineAt(toB).number - update.state.doc.lineAt(fromB).number;
+          lineTo += linesAdded;
+          shifted = true;
+        }
+      });
+
+      if (shifted) {
+        update.view.dispatch({
+          effects: [showInput.of({ show: true, lineFrom, lineTo })],
+        });
+      }
+    }),
     // Tooltip visibility
     EditorView.updateListener.of((update) => {
       if (update.selectionSet) {
@@ -157,21 +194,17 @@ export function aiExtension(opts: AiExtensionOptions): Extension[] {
       return Decoration.none;
     }),
     // Decoration for the input prompt
-    EditorView.decorations.compute(["doc", inputState], (state) => {
+    EditorView.decorations.compute([inputState], (state) => {
       const inputStateValue = state.field(inputState);
       const decorations: Array<Range<Decoration>> = [];
 
       if (inputStateValue.show) {
-        const lineStart = state.doc.lineAt(inputStateValue.from).number;
-        let lineEnd = state.doc.lineAt(inputStateValue.to).number;
-
-        // Handle single-line edits by allowing the loop to run at least
-        // once.
-        if (lineEnd === lineStart) lineEnd++;
+        const lineStart = inputStateValue.lineFrom;
+        const lineEnd = inputStateValue.lineTo;
 
         // Iterate in whole lines, but get the pos of each line's first
         // character for each, because that's what ranges want.
-        for (let line = lineStart; line < lineEnd; line++) {
+        for (let line = lineStart; line <= lineEnd; line++) {
           const pos = state.doc.line(line).from;
           decorations.push(Decoration.line({ class: "cm-ai-selection" }).range(pos));
 
@@ -330,26 +363,28 @@ export const showAiEditInput: Command = (view: EditorView) => {
   const fromLine = doc.lineAt(selection.from);
   const toLine = doc.lineAt(selection.to);
 
-  // Validate selection length
-  const selectionText = state.sliceDoc(selection.from, selection.to);
+  // Get the full line content by using line boundaries
+  const selectionText = state.sliceDoc(fromLine.from, toLine.to);
   if (selectionText.trim().length < MIN_SELECTION_LENGTH) {
     return false;
   }
 
-  // Ensure the selection is within document bounds
-  const safeFrom = Math.max(0, Math.min(fromLine.from, doc.length));
-  const safeTo = Math.max(0, Math.min(toLine.to, doc.length));
+  // Ensure line numbers are within document bounds
+  const safeLineFrom = Math.max(1, Math.min(fromLine.number, doc.lines));
+  const safeLineTo = Math.max(1, Math.min(toLine.number, doc.lines));
 
   view.dispatch({
     effects: [
       showInput.of({
         show: true,
-        from: safeFrom,
-        to: safeTo,
+        lineFrom: safeLineFrom,
+        lineTo: safeLineTo,
       }),
+      setInputFocus.of(true),
+      setInputValue.of(""),
       showTooltip.of(false),
     ],
-    selection: EditorSelection.cursor(safeFrom),
+    selection: EditorSelection.cursor(fromLine.from),
   });
   return true;
 };
@@ -357,7 +392,12 @@ export const showAiEditInput: Command = (view: EditorView) => {
 // Command to close the input prompt
 export const closeAiEditInput: Command = (view: EditorView) => {
   view.dispatch({
-    effects: [showInput.of({ show: false, from: 0, to: 0 }), setLoading.of(false)],
+    effects: [
+      showInput.of({ show: false, lineFrom: 0, lineTo: 0 }),
+      setInputFocus.of(false),
+      setInputValue.of(""),
+      setLoading.of(false),
+    ],
   });
   return true;
 };
@@ -369,7 +409,9 @@ export const acceptAiEdit: Command = (view: EditorView) => {
     view.dispatch({
       effects: [
         showCompletion.of(null),
-        showInput.of({ show: false, from: 0, to: 0 }),
+        showInput.of({ show: false, lineFrom: 0, lineTo: 0 }),
+        setInputFocus.of(false),
+        setInputValue.of(""),
         setLoading.of(false),
       ],
     });
@@ -390,7 +432,9 @@ export const rejectAiEdit: Command = (view: EditorView) => {
       },
       effects: [
         showCompletion.of(null),
-        showInput.of({ show: false, from: 0, to: 0 }),
+        showInput.of({ show: false, lineFrom: 0, lineTo: 0 }),
+        setInputFocus.of(false),
+        setInputValue.of(""),
         setLoading.of(false),
       ],
     });
@@ -462,14 +506,19 @@ function formatKeymap(keymap: string) {
 // Input widget
 class InputWidget extends WidgetType {
   private abortController: AbortController | null = null;
+  private dom: HTMLElement | null = null;
+  private input: HTMLInputElement | null = null;
 
   constructor(private complete: CompleteFunction) {
     super();
   }
 
   toDOM(view: EditorView) {
+    if (this.dom) return this.dom;
+
     const options = view.state.facet(optionsFacet);
     const inputContainer = document.createElement("div");
+    this.dom = inputContainer;
     inputContainer.className = "cm-ai-input-container";
 
     const form = document.createElement("form");
@@ -479,11 +528,14 @@ class InputWidget extends WidgetType {
     form.addEventListener("submit", (e) => e.preventDefault());
 
     const input = document.createElement("input");
+    this.input = input;
     input.className = "cm-ai-input";
     input.placeholder = "Editing instructions...";
     input.setAttribute("aria-label", "AI editing instructions");
     input.setAttribute("autocomplete", "off");
     input.setAttribute("spellcheck", "true");
+    // Set initial value
+    input.value = view.state.field(inputValueState).inputValue;
 
     const loadingContainer = document.createElement("div");
     loadingContainer.className = "cm-ai-loading-container";
@@ -497,7 +549,7 @@ class InputWidget extends WidgetType {
     const onCancel = () => {
       this.cleanup();
       view.dispatch({
-        effects: [showInput.of({ show: false, from: 0, to: 0 }), setLoading.of(false)],
+        effects: [showInput.of({ show: false, lineFrom: 0, lineTo: 0 }), setLoading.of(false)],
       });
       view.focus();
     };
@@ -523,8 +575,13 @@ class InputWidget extends WidgetType {
       loadingContainer.classList.add("hidden");
     }
 
-    // Focus management
-    requestAnimationFrame(() => input.focus());
+    // Focus if not the first render
+    if (view.state.field(inputValueState).shouldFocus) {
+      requestAnimationFrame(() => {
+        input.focus();
+        view.dispatch({ effects: setInputFocus.of(false) });
+      });
+    }
 
     const handleSubmit = async () => {
       const state = view.state.field(inputState);
@@ -533,9 +590,15 @@ class InputWidget extends WidgetType {
       // Input validation
       if (!state.show || !prompt) return;
 
-      const oldCode = view.state.sliceDoc(state.from, state.to);
-      const codeBefore = view.state.sliceDoc(0, state.from);
-      const codeAfter = view.state.sliceDoc(state.to);
+      // Get the full line content
+      const fromLine = view.state.doc.line(state.lineFrom);
+      const toLine = view.state.doc.line(state.lineTo);
+      const fromPos = fromLine.from;
+      const toPos = toLine.to;
+
+      const oldCode = view.state.sliceDoc(fromPos, toPos);
+      const codeBefore = view.state.sliceDoc(0, fromPos);
+      const codeAfter = view.state.sliceDoc(toPos);
 
       this.abortController = new AbortController();
       view.dispatch({ effects: setLoading.of(true) });
@@ -561,12 +624,12 @@ class InputWidget extends WidgetType {
         }
 
         view.dispatch({
-          changes: { from: state.from, to: state.to, insert: result },
+          changes: { from: fromPos, to: toPos, insert: result },
           effects: [
-            showInput.of({ show: false, from: state.from, to: state.to }),
+            showInput.of({ show: false, lineFrom: 0, lineTo: 0 }),
             showCompletion.of({
-              from: state.from,
-              to: state.from + result.length,
+              from: fromPos,
+              to: fromPos + result.length,
               oldCode,
               newCode: result,
             }),
@@ -587,13 +650,7 @@ class InputWidget extends WidgetType {
       }
     };
 
-    // Handle input changes
-    let lastValue = "";
-    const handleInput = () => {
-      const value = input.value.trim();
-      if (value === lastValue) return;
-      lastValue = value;
-
+    const renderHelpInfo = (value: string) => {
       helpInfo.textContent = "";
       if (value) {
         const generateBtn = document.createElement("button");
@@ -607,6 +664,18 @@ class InputWidget extends WidgetType {
         helpInfo.appendChild(escText);
       }
     };
+
+    // Handle input changes
+    let lastValue = "";
+    const handleInput = () => {
+      view.dispatch({ effects: setInputValue.of(input.value) });
+      const value = input.value.trim();
+      if (value === lastValue) return;
+      lastValue = value;
+      renderHelpInfo(value);
+    };
+
+    renderHelpInfo(input.value);
 
     input.addEventListener("input", handleInput);
 
@@ -624,9 +693,20 @@ class InputWidget extends WidgetType {
     return inputContainer;
   }
 
+  updateDOM(dom: HTMLElement, _view: EditorView): boolean {
+    // Keep existing DOM, just update state if needed
+    this.dom = dom;
+    this.input = dom.querySelector(".cm-ai-input");
+    return true;
+  }
+
   private cleanup() {
     this.abortController?.abort();
     this.abortController = null;
+    this.dom?.remove();
+    this.input?.remove();
+    this.dom = null;
+    this.input = null;
   }
 
   destroy() {
