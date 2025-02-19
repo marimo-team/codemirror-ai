@@ -351,8 +351,8 @@ export const showAiEditInput: Command = (view: EditorView) => {
   const { state } = view;
   const selection = state.selection.main;
 
-  // Validate selection
-  if (selection.from === selection.to) {
+  // If the selection is empty, hide the tooltip.
+  if (selection.empty) {
     view.dispatch({
       effects: [showTooltip.of(false)],
     });
@@ -516,7 +516,10 @@ class InputWidget extends WidgetType {
   toDOM(view: EditorView) {
     if (this.dom) return this.dom;
 
+    const inputValue = view.state.field(inputValueState);
     const options = view.state.facet(optionsFacet);
+    const isLoading = view.state.field(loadingState);
+
     const inputContainer = document.createElement("div");
     this.dom = inputContainer;
     inputContainer.className = "cm-ai-input-container";
@@ -535,7 +538,7 @@ class InputWidget extends WidgetType {
     input.setAttribute("autocomplete", "off");
     input.setAttribute("spellcheck", "true");
     // Set initial value
-    input.value = view.state.field(inputValueState).inputValue;
+    input.value = inputValue.inputValue;
 
     const loadingContainer = document.createElement("div");
     loadingContainer.className = "cm-ai-loading-container";
@@ -567,7 +570,6 @@ class InputWidget extends WidgetType {
     helpInfo.textContent = "Esc to close";
     helpInfo.addEventListener("click", onCancel);
 
-    const isLoading = view.state.field(loadingState);
     if (isLoading) {
       helpInfo.classList.add("hidden");
       input.disabled = true;
@@ -576,8 +578,10 @@ class InputWidget extends WidgetType {
     }
 
     // Focus if not the first render
-    if (view.state.field(inputValueState).shouldFocus) {
+    if (inputValue.shouldFocus) {
       requestAnimationFrame(() => {
+        // Reset the input to its recorded value
+        input.value = inputValue.inputValue;
         input.focus();
         view.dispatch({ effects: setInputFocus.of(false) });
       });

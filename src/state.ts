@@ -94,15 +94,16 @@ export const inputValueState = StateField.define<InputValueState>({
     return { shouldFocus: false, inputValue: "" };
   },
   update(value, tr) {
+    let updated = value;
     for (const e of tr.effects) {
       if (e.is(setInputValue)) {
-        return { shouldFocus: value.shouldFocus, inputValue: e.value };
+        updated = { ...updated, inputValue: e.value };
       }
       if (e.is(setInputFocus)) {
-        return { shouldFocus: e.value, inputValue: value.inputValue };
+        updated = { ...updated, shouldFocus: e.value };
       }
     }
-    return value;
+    return updated;
   },
 });
 
