@@ -587,7 +587,11 @@ class InputWidget extends WidgetType {
       });
     }
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (e?: Event) => {
+      // Prevent a click event on the submit button
+      // passing-through to the cancel button when we unhide
+      // the helpInfo div.
+      e?.stopPropagation();
       const state = view.state.field(inputState);
       const prompt = input.value.trim();
 
