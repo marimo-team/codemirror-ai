@@ -243,7 +243,7 @@ export function aiExtension(opts: AiExtensionOptions): Extension[] {
   ];
 }
 
-// View plugin to handle selection changes
+/** View plugin to handle selection changes */
 const selectionPlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
@@ -346,7 +346,7 @@ const selectionPlugin = ViewPlugin.fromClass(
   },
 );
 
-// Command to show the input prompt
+/** Command to show the input prompt */
 export const showAiEditInput: Command = (view: EditorView) => {
   const { state } = view;
   const selection = state.selection.main;
@@ -389,7 +389,7 @@ export const showAiEditInput: Command = (view: EditorView) => {
   return true;
 };
 
-// Command to close the input prompt
+/** Command to close the input prompt */
 export const closeAiEditInput: Command = (view: EditorView) => {
   view.dispatch({
     effects: [
@@ -402,7 +402,7 @@ export const closeAiEditInput: Command = (view: EditorView) => {
   return true;
 };
 
-// Command to accept the completion
+/** Command to accept the completion */
 export const acceptAiEdit: Command = (view: EditorView) => {
   const completionStateValue = view.state.field(completionState);
   if (completionStateValue) {
@@ -420,7 +420,7 @@ export const acceptAiEdit: Command = (view: EditorView) => {
   return false;
 };
 
-// Command to reject the completion
+/** Command to reject the completion */
 export const rejectAiEdit: Command = (view: EditorView) => {
   const completionStateValue = view.state.field(completionState);
   if (completionStateValue) {

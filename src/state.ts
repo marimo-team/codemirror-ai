@@ -14,14 +14,18 @@ export interface AiOptions {
   };
 }
 
-// Default keymap values
+/**
+ * Default keymap values
+ */
 export const defaultKeymaps = {
   showInput: "Mod-l",
   acceptEdit: "Mod-y",
   rejectEdit: "Mod-u",
 };
 
-// Facet for options
+/**
+ * Facet for options
+ */
 export const optionsFacet = Facet.define<AiOptions, AiOptions>({
   combine: (values) => Object.assign({}, ...values),
 });
@@ -44,10 +48,14 @@ export interface CompletionState {
   newCode: string;
 }
 
-// State effect to show/hide the tooltip
+/**
+ * State effect to show/hide the tooltip
+ */
 export const showTooltip = StateEffect.define<boolean>();
 
-// State field to manage the tooltip visibility
+/**
+ * State field to manage the tooltip visibility
+ */
 export const tooltipState = StateField.define<boolean>({
   create() {
     return false;
@@ -65,10 +73,14 @@ export const tooltipState = StateField.define<boolean>({
   },
 });
 
-// State effect to show/hide the input
+/**
+ * State effect to show/hide the input
+ */
 export const showInput = StateEffect.define<InputState>();
 
-// State field to manage the input visibility and position
+/**
+ * State field to manage the input visibility and position
+ */
 export const inputState = StateField.define<InputState>({
   create() {
     return { show: false, lineFrom: 0, lineTo: 0 };
@@ -83,12 +95,18 @@ export const inputState = StateField.define<InputState>({
   },
 });
 
-// State effect to set the input value
+/**
+ * State effect to set the input value
+ */
 export const setInputValue = StateEffect.define<string>();
-// State effect to set the input focus
+/**
+ * State effect to set the input focus
+ */
 export const setInputFocus = StateEffect.define<boolean>();
 
-// State field for the input focus and value
+/**
+ * State field for the input focus and value
+ */
 export const inputValueState = StateField.define<InputValueState>({
   create() {
     return { shouldFocus: false, inputValue: "" };
@@ -107,10 +125,14 @@ export const inputValueState = StateField.define<InputValueState>({
   },
 });
 
-// State effect to show/hide the completion
+/**
+ * State effect to show/hide the completion
+ */
 export const showCompletion = StateEffect.define<CompletionState | null>();
 
-// State field to manage the completion
+/**
+ * State field to manage the completion
+ */
 export const completionState = StateField.define<CompletionState | null>({
   create() {
     return null;
@@ -125,9 +147,15 @@ export const completionState = StateField.define<CompletionState | null>({
   },
 });
 
-// State effect and field for loading status
+/**
+ * State effect and field for loading status
+ */
 export const setLoading = StateEffect.define<boolean>();
 
+/**
+ * State effect that manages whether the displayed UI
+ * shows a loading indicator or not.
+ */
 export const loadingState = StateField.define<boolean>({
   create() {
     return false;
