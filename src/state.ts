@@ -1,12 +1,30 @@
-import { Facet, StateEffect, StateField } from "@codemirror/state";
-import type { CreateEditOpts } from "./inline-edit.js";
+import { Facet, StateEffect, StateField, combineConfig } from "@codemirror/state";
+import type { EditorView } from "@codemirror/view";
+
+export interface CreateEditOpts {
+  prompt: string;
+  editorView: EditorView;
+  selection: string;
+  codeBefore: string;
+  codeAfter: string;
+  signal?: AbortSignal;
+}
+
+export type CompleteFunction = (opts: CreateEditOpts) => Promise<string>;
 
 export interface AiOptions {
+  /** Function to generate completions */
+  prompt: CompleteFunction;
+  /** Called when an error occurs during completion */
   onError?: (error: Error) => void;
   logger?: typeof console;
+  /** Called when user accepts an edit */
   onAcceptEdit?: (opts: CreateEditOpts) => void;
+  /** Called when user rejects an edit */
   onRejectEdit?: (opts: CreateEditOpts) => void;
+  /** Debounce time in ms for input handling */
   inputDebounceTime?: number;
+  /** Custom keymaps */
   keymaps?: {
     showInput?: string;
     acceptEdit?: string;
@@ -23,11 +41,31 @@ export const defaultKeymaps = {
   rejectEdit: "Mod-u",
 };
 
+const DEFAULT_DEBOUNCE_TIME = 300;
+
 /**
  * Facet for options
  */
 export const optionsFacet = Facet.define<AiOptions, AiOptions>({
-  combine: (values) => Object.assign({}, ...values),
+  combine: (configs) =>
+    combineConfig(
+      configs,
+      {
+        onError: console.error,
+        inputDebounceTime: DEFAULT_DEBOUNCE_TIME,
+        keymaps: defaultKeymaps,
+      },
+      {
+        // This TypeScript error is more of a lint - it says that
+        // a && b will always return b because a is always truthy.
+        // But that's what we want here.
+        //
+        // @ts-expect-error TS2774
+        onError: (a, b) => a && b,
+        inputDebounceTime: (a, b) => a && b,
+        keymaps: (a, b) => a && b,
+      },
+    ),
 });
 
 export interface InputState {

@@ -12,9 +12,13 @@ describe("index.ts exports", () => {
         "closeAiEditInput",
         "completionState",
         "defaultKeymaps",
+        "inputPromptDecoration",
         "inputState",
         "inputValueState",
+        "lineShiftListener",
         "loadingState",
+        "newCodeDecoration",
+        "oldCodeDecoration",
         "optionsFacet",
         "rejectAiEdit",
         "setInputFocus",
@@ -25,6 +29,7 @@ describe("index.ts exports", () => {
         "showInput",
         "showTooltip",
         "tooltipState",
+        "tooltipVisibilityListener",
       ]
     `);
   });
