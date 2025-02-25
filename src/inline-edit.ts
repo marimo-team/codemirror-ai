@@ -35,6 +35,7 @@ import {
 } from "./state.js";
 import { aiTheme } from "./theme.js";
 import { getModSymbol } from "./utils.js";
+import { cursorTooltip } from "./tooltip.js";
 
 // Validation constants
 const MIN_SELECTION_LENGTH = 1;
@@ -82,7 +83,8 @@ export function aiExtension(options: AiOptions): Extension[] {
     inputValueState,
     completionState,
     loadingState,
-    selectionPlugin,
+    // selectionPlugin,
+    cursorTooltip(),
     aiTheme,
     keymap.of([
       {
