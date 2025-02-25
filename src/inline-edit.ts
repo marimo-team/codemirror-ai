@@ -17,6 +17,8 @@ import {
   keymap,
 } from "@codemirror/view";
 import {
+  type AiOptions,
+  type CompleteFunction,
   completionState,
   defaultKeymaps,
   inputState,
@@ -34,34 +36,7 @@ import {
 import { aiTheme } from "./theme.js";
 import { getModSymbol } from "./utils.js";
 
-export interface CreateEditOpts {
-  prompt: string;
-  editorView: EditorView;
-  selection: string;
-  codeBefore: string;
-  codeAfter: string;
-  signal?: AbortSignal;
-}
-
-export type CompleteFunction = (opts: CreateEditOpts) => Promise<string>;
-
-export interface AiExtensionOptions {
-  /** Function to generate completions */
-  prompt: CompleteFunction;
-  /** Called when user accepts an edit */
-  onAcceptEdit?: (opts: CreateEditOpts) => void;
-  /** Called when user rejects an edit */
-  onRejectEdit?: (opts: CreateEditOpts) => void;
-  /** Called when an error occurs during completion */
-  onError?: (error: Error) => void;
-  /** Custom keymaps */
-  keymaps?: Partial<typeof defaultKeymaps>;
-  /** Debounce time in ms for input handling */
-  inputDebounceTime?: number;
-}
-
 // Validation constants
-const DEFAULT_DEBOUNCE_TIME = 300;
 const MIN_SELECTION_LENGTH = 1;
 
 /**
@@ -94,20 +69,11 @@ const MIN_SELECTION_LENGTH = 1;
  * });
  * ```
  */
-export function aiExtension(opts: AiExtensionOptions): Extension[] {
+export function aiExtension(options: AiOptions): Extension[] {
   // Validate required options
-  if (!opts.prompt) {
+  if (!options.prompt) {
     throw new Error("prompt function is required");
   }
-
-  // Merge defaults
-  const options = {
-    onAcceptEdit: opts.onAcceptEdit,
-    onRejectEdit: opts.onRejectEdit,
-    onError: opts.onError || console.error,
-    inputDebounceTime: opts.inputDebounceTime || DEFAULT_DEBOUNCE_TIME,
-    keymaps: { ...defaultKeymaps, ...opts.keymaps },
-  };
 
   return [
     optionsFacet.of(options),
@@ -130,118 +96,138 @@ export function aiExtension(opts: AiExtensionOptions): Extension[] {
         { key: defaultKeymaps.rejectEdit, run: rejectAiEdit },
       ]),
     ]),
-    // Track line shifts
-    EditorView.updateListener.of((update) => {
-      const inputStateValue = update.state.field(inputState);
-      if (!inputStateValue.show || !update.docChanged) return;
-
-      let { lineFrom, lineTo } = inputStateValue;
-      let shifted = false;
-
-      update.changes.iterChanges((fromA, _toA, fromB, toB) => {
-        const changePosLine = update.state.doc.lineAt(fromA).number;
-
-        if (changePosLine < lineFrom) {
-          // Changes before selection - shift both bounds
-          const linesAdded =
-            update.state.doc.lineAt(toB).number - update.state.doc.lineAt(fromB).number;
-          lineFrom += linesAdded;
-          lineTo += linesAdded;
-          shifted = true;
-        } else if (changePosLine <= lineTo) {
-          // Changes inside selection - adjust end bound
-          const linesAdded =
-            update.state.doc.lineAt(toB).number - update.state.doc.lineAt(fromB).number;
-          lineTo += linesAdded;
-          shifted = true;
-        }
-      });
-
-      if (shifted) {
-        update.view.dispatch({
-          effects: [showInput.of({ show: true, lineFrom, lineTo })],
-        });
-      }
-    }),
-    // Tooltip visibility
-    EditorView.updateListener.of((update) => {
-      if (update.selectionSet) {
-        const { from, to } = update.state.selection.main;
-        const inputStateValue = update.state.field(inputState);
-        const completionStateValue = update.state.field(completionState);
-        const tooltipVisible = update.state.field(tooltipState);
-        const shouldShow = from !== to && !inputStateValue.show && !completionStateValue;
-
-        // Only dispatch if tooltip state needs to change
-        if (tooltipVisible !== shouldShow) {
-          update.view.dispatch({
-            effects: showTooltip.of(shouldShow),
-          });
-        }
-      }
-    }),
+    lineShiftListener,
+    tooltipVisibilityListener,
     // Decoration for the new code (green)
-    EditorView.decorations.of((view) => {
-      const completionStateValue = view.state.field(completionState);
-      if (completionStateValue) {
-        return Decoration.set([
-          Decoration.mark({
-            class: "cm-new-code-line",
-          }).range(completionStateValue.from, completionStateValue.to),
-        ]);
-      }
-
-      return Decoration.none;
-    }),
-    // Decoration for the input prompt
-    EditorView.decorations.compute([inputState], (state) => {
-      const inputStateValue = state.field(inputState);
-      const decorations: Array<Range<Decoration>> = [];
-
-      if (inputStateValue.show) {
-        const lineStart = inputStateValue.lineFrom;
-        const lineEnd = inputStateValue.lineTo;
-
-        // Iterate in whole lines, but get the pos of each line's first
-        // character for each, because that's what ranges want.
-        for (let line = lineStart; line <= lineEnd; line++) {
-          const pos = state.doc.line(line).from;
-          decorations.push(Decoration.line({ class: "cm-ai-selection" }).range(pos));
-
-          // This needs to be interleaved because CodeMirror wants
-          // the decorations sorted
-          if (line === lineStart) {
-            decorations.push(
-              Decoration.widget({
-                widget: new InputWidget(opts.prompt),
-                side: -1,
-              }).range(pos),
-            );
-          }
-        }
-      }
-
-      return Decoration.set(decorations);
-    }),
+    newCodeDecoration,
+    inputPromptDecoration,
     // Decoration for the old code (red)
-    StateField.define<DecorationSet>({
-      create(_state: EditorState) {
-        return Decoration.none;
-      },
-      update(_oldState, tr) {
-        const completionStateValue = tr.state.field(completionState);
-        if (!completionStateValue) return Decoration.none;
-        return Decoration.set([
-          Decoration.widget({
-            widget: new OldCodeWidget(completionStateValue.oldCode),
-            block: true,
-          }).range(completionStateValue.from),
-        ]);
-      },
-      provide: (f) => EditorView.decorations.from(f),
-    }),
+    oldCodeDecoration,
   ];
 }
+
+/**
+ * Track line shifts and adjust the position of the input.
+ */
+export const lineShiftListener = EditorView.updateListener.of((update) => {
+  const inputStateValue = update.state.field(inputState);
+  if (!inputStateValue.show || !update.docChanged) return;
+
+  let { lineFrom, lineTo } = inputStateValue;
+  let shifted = false;
+
+  update.changes.iterChanges((fromA, _toA, fromB, toB) => {
+    const changePosLine = update.state.doc.lineAt(fromA).number;
+
+    if (changePosLine < lineFrom) {
+      // Changes before selection - shift both bounds
+      const linesAdded =
+        update.state.doc.lineAt(toB).number - update.state.doc.lineAt(fromB).number;
+      lineFrom += linesAdded;
+      lineTo += linesAdded;
+      shifted = true;
+    } else if (changePosLine <= lineTo) {
+      // Changes inside selection - adjust end bound
+      const linesAdded =
+        update.state.doc.lineAt(toB).number - update.state.doc.lineAt(fromB).number;
+      lineTo += linesAdded;
+      shifted = true;
+    }
+  });
+
+  if (shifted) {
+    update.view.dispatch({
+      effects: [showInput.of({ show: true, lineFrom, lineTo })],
+    });
+  }
+});
+
+/**
+ * Tooltip visibility listener. This will hide the tooltip
+ * if the user hasn't selected a block of text.
+ */
+export const tooltipVisibilityListener = EditorView.updateListener.of((update) => {
+  if (update.selectionSet) {
+    const { from, to } = update.state.selection.main;
+    const inputStateValue = update.state.field(inputState);
+    const completionStateValue = update.state.field(completionState);
+    const tooltipVisible = update.state.field(tooltipState);
+    const shouldShow = from !== to && !inputStateValue.show && !completionStateValue;
+
+    // Only dispatch if tooltip state needs to change
+    if (tooltipVisible !== shouldShow) {
+      update.view.dispatch({
+        effects: showTooltip.of(shouldShow),
+      });
+    }
+  }
+});
+
+/** Decoration for the new code (green) */
+export const newCodeDecoration = EditorView.decorations.of((view) => {
+  const completionStateValue = view.state.field(completionState);
+  if (completionStateValue) {
+    return Decoration.set([
+      Decoration.mark({
+        class: "cm-new-code-line",
+      }).range(completionStateValue.from, completionStateValue.to),
+    ]);
+  }
+
+  return Decoration.none;
+});
+
+/** Decoration for the input prompt */
+export const inputPromptDecoration = EditorView.decorations.compute([inputState], (state) => {
+  const inputStateValue = state.field(inputState);
+  const options = state.facet(optionsFacet);
+  const decorations: Array<Range<Decoration>> = [];
+
+  if (inputStateValue.show) {
+    const lineStart = inputStateValue.lineFrom;
+    const lineEnd = inputStateValue.lineTo;
+
+    // Iterate in whole lines, but get the pos of each line's first
+    // character for each, because that's what ranges want.
+    for (let line = lineStart; line <= lineEnd; line++) {
+      const pos = state.doc.line(line).from;
+      decorations.push(Decoration.line({ class: "cm-ai-selection" }).range(pos));
+
+      // This needs to be interleaved because CodeMirror wants
+      // the decorations sorted
+      if (line === lineStart) {
+        decorations.push(
+          Decoration.widget({
+            widget: new InputWidget(options.prompt),
+            side: -1,
+          }).range(pos),
+        );
+      }
+    }
+  }
+
+  return Decoration.set(decorations);
+});
+
+/**
+ * Decoration highlighting old code with red
+ */
+export const oldCodeDecoration = StateField.define<DecorationSet>({
+  create(_state: EditorState) {
+    return Decoration.none;
+  },
+  update(_oldState, tr) {
+    const completionStateValue = tr.state.field(completionState);
+    if (!completionStateValue) return Decoration.none;
+    return Decoration.set([
+      Decoration.widget({
+        widget: new OldCodeWidget(completionStateValue.oldCode),
+        block: true,
+      }).range(completionStateValue.from),
+    ]);
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
 
 /** View plugin to handle selection changes */
 const selectionPlugin = ViewPlugin.fromClass(
