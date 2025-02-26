@@ -19,6 +19,7 @@ function getCursorTooltips(state: EditorState): readonly Tooltip[] {
         above: range.head === range.from,
         strictSide: false,
         arrow: false,
+        clip: true,
         create: () => {
           const dom = document.createElement("div");
           dom.className = "cm-tooltip-codemirror-ai";
@@ -59,18 +60,32 @@ export const cursorTooltipField = StateField.define<{
     }),
 });
 
-export const cursorTooltipPlugin = EditorView.domEventHandlers({
-  mousedown(_evt, view) {
-    view.dispatch({
-      effects: suppressEffect.of(true),
-    });
+/**
+ * This sets supress: true while the user has their
+ * mouse down, which hides the tooltip.
+ */
+export const suppressionPlugin = ViewPlugin.fromClass(
+  class SupressionPlugin implements PluginValue {
+    mousedown = () => {
+      this.view.dispatch({
+        effects: suppressEffect.of(true),
+      });
+    };
+    mouseup = () => {
+      this.view.dispatch({
+        effects: suppressEffect.of(false),
+      });
+    };
+    constructor(public view: EditorView) {
+      document.addEventListener("mousedown", this.mousedown);
+      document.addEventListener("mouseup", this.mouseup);
+    }
+    destroy() {
+      document.removeEventListener("mousedown", this.mousedown);
+      document.removeEventListener("mouseup", this.mouseup);
+    }
   },
-  mouseup(_evt, view) {
-    view.dispatch({
-      effects: suppressEffect.of(false),
-    });
-  },
-});
+);
 
 const cursorTooltipBaseTheme = EditorView.baseTheme({
   ".cm-tooltip.cm-tooltip-codemirror-ai": {
@@ -87,5 +102,5 @@ const cursorTooltipBaseTheme = EditorView.baseTheme({
 });
 
 export function cursorTooltip() {
-  return [cursorTooltipPlugin, cursorTooltipField, cursorTooltipBaseTheme];
+  return [suppressionPlugin, cursorTooltipField, cursorTooltipBaseTheme];
 }
