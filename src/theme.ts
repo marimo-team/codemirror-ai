@@ -2,30 +2,6 @@ import { EditorView } from "@codemirror/view";
 
 // Theme for AI features
 export const aiTheme = EditorView.baseTheme({
-  ".cm-ai-tooltip": {
-    userSelect: "none",
-    pointerEvents: "none",
-    fontFamily: "system-ui, -apple-system, sans-serif",
-    position: "absolute",
-    right: "8px",
-    padding: "2px 6px",
-    borderRadius: "4px",
-    fontSize: "12px",
-    backgroundColor: "#0E639C",
-    color: "#ffffff",
-    border: "1px solid transparent",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-    zIndex: "999",
-    "& > span": {
-      pointerEvents: "auto",
-      cursor: "pointer",
-      display: "inline-block",
-      padding: "2px",
-    },
-    "&:hover": {
-      backgroundColor: "#1177bb",
-    },
-  },
   ".cm-ai-input-container": {
     display: "flex",
     flexDirection: "column",

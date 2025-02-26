@@ -2,11 +2,13 @@ import {
   EditorView,
   type Tooltip,
   ViewPlugin,
-  type ViewUpdate,
   type PluginValue,
   showTooltip,
 } from "@codemirror/view";
 import { type EditorState, StateEffect, StateField } from "@codemirror/state";
+import { showAiEditInput } from "./inline-edit.js";
+import { defaultKeymaps, optionsFacet } from "./state.js";
+import { formatKeymap } from "./utils.js";
 
 function getCursorTooltips(state: EditorState): readonly Tooltip[] {
   return state.selection.ranges
@@ -19,14 +21,33 @@ function getCursorTooltips(state: EditorState): readonly Tooltip[] {
         above: range.head === range.from,
         strictSide: false,
         arrow: false,
+        // TODO: this doesn't work. The tooltip still displays
+        // even if it's outside of the editor.
         clip: true,
-        create: () => {
+        create: (view) => {
+          const options = view.state.facet(optionsFacet);
+          const keymaps = { ...defaultKeymaps, ...options.keymaps };
           const dom = document.createElement("div");
-          dom.className = "cm-tooltip-codemirror-ai";
-          const button = dom.appendChild(document.createElement("button"));
-          button.className = "cm-tooltip-codemirror-ai-button";
-          button.textContent = "Edit with AI";
-          return { dom };
+          dom.className = "cm-ai-tooltip";
+          const tooltip = dom.appendChild(document.createElement("div"));
+          tooltip.className = "cm-ai-tooltip-button";
+          tooltip.innerHTML = `<span>Edit <span class="hotkey">${formatKeymap(keymaps.showInput)}</span></span>`;
+
+          // NOTE: preventing mousedown from propagating here prevents
+          // the tooltip from being closed before it can be clicked, but
+          // I'm still triggering the action on click to preserve native click-cancel
+          // behavior (dragging to cancel the click)
+          tooltip.querySelector("span")?.addEventListener("mousedown", (evt) => {
+            evt.stopPropagation();
+          });
+          tooltip.querySelector("span")?.addEventListener("click", (evt) => {
+            evt.preventDefault();
+            showAiEditInput(view);
+          });
+
+          return {
+            dom,
+          };
         },
       };
     });
@@ -88,16 +109,31 @@ export const suppressionPlugin = ViewPlugin.fromClass(
 );
 
 const cursorTooltipBaseTheme = EditorView.baseTheme({
-  ".cm-tooltip.cm-tooltip-codemirror-ai": {
+  ".cm-tooltip.cm-ai-tooltip": {
     border: "none",
-    paddingBottom: "5px",
   },
-  ".cm-tooltip .cm-tooltip-codemirror-ai-button": {
-    backgroundColor: "#66b",
-    border: "1px solid #000",
-    color: "white",
-    padding: "2px 7px",
+  ".cm-tooltip .cm-ai-tooltip-button": {
+    userSelect: "none",
+    pointerEvents: "none",
+    fontFamily: "system-ui, -apple-system, sans-serif",
+    display: "flex",
+    padding: "2px 6px",
     borderRadius: "4px",
+    fontSize: "12px",
+    backgroundColor: "#0E639C",
+    color: "#ffffff",
+    border: "1px solid transparent",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+    zIndex: "999",
+    "& > span": {
+      pointerEvents: "auto",
+      cursor: "pointer",
+      display: "inline-block",
+      padding: "2px",
+    },
+    "&:hover": {
+      backgroundColor: "#1177bb",
+    },
   },
 });
 

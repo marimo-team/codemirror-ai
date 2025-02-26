@@ -34,8 +34,8 @@ import {
   tooltipState,
 } from "./state.js";
 import { aiTheme } from "./theme.js";
-import { getModSymbol } from "./utils.js";
 import { cursorTooltip } from "./tooltip.js";
+import { formatKeymap } from "./utils.js";
 
 // Validation constants
 const MIN_SELECTION_LENGTH = 1;
@@ -487,11 +487,10 @@ class OldCodeWidget extends WidgetType {
   }
 }
 
-function formatKeymap(keymap: string) {
-  return keymap.replace("Mod", getModSymbol()).replace("-", " ").toUpperCase();
-}
-
-// Input widget
+/**
+ * Input widget. This contains the text area in which
+ * people can type prompts.
+ */
 class InputWidget extends WidgetType {
   private abortController: AbortController | null = null;
   private dom: HTMLElement | null = null;
