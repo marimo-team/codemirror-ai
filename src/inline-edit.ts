@@ -11,8 +11,6 @@ import {
   Decoration,
   type DecorationSet,
   EditorView,
-  ViewPlugin,
-  type ViewUpdate,
   WidgetType,
   keymap,
 } from "@codemirror/view";
@@ -34,8 +32,8 @@ import {
   tooltipState,
 } from "./state.js";
 import { aiTheme } from "./theme.js";
-import { cursorTooltip } from "./tooltip.js";
 import { formatKeymap } from "./utils.js";
+import { triggerPlugin } from "./trigger.js";
 
 // Validation constants
 const MIN_SELECTION_LENGTH = 1;
@@ -83,8 +81,7 @@ export function aiExtension(options: AiOptions): Extension[] {
     inputValueState,
     completionState,
     loadingState,
-    // selectionPlugin,
-    cursorTooltip(),
+    triggerPlugin(),
     aiTheme,
     keymap.of([
       {
@@ -230,109 +227,6 @@ export const oldCodeDecoration = StateField.define<DecorationSet>({
   },
   provide: (f) => EditorView.decorations.from(f),
 });
-
-/** View plugin to handle selection changes */
-const selectionPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet;
-    private tooltip: HTMLDivElement | null = null;
-
-    constructor(view: EditorView) {
-      this.decorations = this.createDecorations(view);
-    }
-
-    update(update: ViewUpdate) {
-      const prevDoc = update.startState.doc;
-      const currDoc = update.state.doc;
-      const prevSel = update.startState.selection.main;
-      const currSel = update.state.selection.main;
-
-      const prevFromLine = prevDoc.lineAt(prevSel.from).number;
-      const currFromLine = currDoc.lineAt(currSel.from).number;
-
-      const lineFromChanged = prevFromLine !== currFromLine;
-
-      if (
-        lineFromChanged ||
-        update.docChanged ||
-        update.viewportChanged ||
-        update.transactions.some((tr) => tr.effects.some((e) => e.is(showTooltip)))
-      ) {
-        this.decorations = this.createDecorations(update.view);
-      }
-    }
-
-    createDecorations(view: EditorView) {
-      const { from, to } = view.state.selection.main;
-      const inputStateValue = view.state.field(inputState);
-      const completionStateValue = view.state.field(completionState);
-      const tooltipStateValue = view.state.field(tooltipState);
-      const doc = view.state.doc;
-
-      // Hide tooltip if there's no selection, input is open, completion is pending, or tooltipState is false
-      if (
-        from === to ||
-        inputStateValue.show ||
-        completionStateValue ||
-        !tooltipStateValue ||
-        from < 0 ||
-        to > doc.length
-      ) {
-        return Decoration.none;
-      }
-
-      // Adjust selection to exclude empty lines
-      let adjustedFrom = from;
-      let adjustedTo = to;
-
-      while (adjustedFrom < adjustedTo && doc.lineAt(adjustedFrom).length === 0) {
-        adjustedFrom = doc.lineAt(adjustedFrom + 1).from;
-      }
-      while (adjustedTo > adjustedFrom && doc.lineAt(adjustedTo).length === 0) {
-        adjustedTo = doc.lineAt(adjustedTo - 1).to;
-      }
-
-      if (adjustedFrom === adjustedTo) {
-        return Decoration.none;
-      }
-
-      if (!this.tooltip) {
-        const options = view.state.facet(optionsFacet);
-        const keymaps = { ...defaultKeymaps, ...options.keymaps };
-        this.tooltip = document.createElement("div");
-        this.tooltip.className = "cm-ai-tooltip";
-        this.tooltip.innerHTML = `<span>Edit <span class="hotkey">${formatKeymap(keymaps.showInput)}</span></span>`;
-        this.tooltip.querySelector("span")?.addEventListener("click", (evt) => {
-          evt.stopPropagation();
-          showAiEditInput(view);
-        });
-      }
-      const tooltip = this.tooltip;
-
-      return Decoration.set([
-        Decoration.widget({
-          widget: new (class extends WidgetType {
-            toDOM() {
-              return tooltip;
-            }
-            override ignoreEvent() {
-              return true;
-            }
-          })(),
-          side: -1,
-        }).range(adjustedFrom),
-      ]);
-    }
-
-    destroy() {
-      this.tooltip?.remove();
-      this.tooltip = null;
-    }
-  },
-  {
-    decorations: (v) => v.decorations,
-  },
-);
 
 /** Command to show the input prompt */
 export const showAiEditInput: Command = (view: EditorView) => {
