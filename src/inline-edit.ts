@@ -75,7 +75,8 @@ export function aiExtension(options: AiOptions): Extension[] {
     // Decoration for the new code (green)
     newCodeDecoration,
     inputPromptDecoration,
-    // Decoration for the old code (red)
+    // Decoration for the old code (red), and
+    // the accept/reject buttons.
     oldCodeDecoration,
   ];
 }
@@ -164,6 +165,8 @@ export const inputPromptDecoration = EditorView.decorations.compute([inputState]
 
 /**
  * Decoration highlighting old code with red
+ *
+ * Depends on the completionState facet.
  */
 export const oldCodeDecoration = StateField.define<DecorationSet>({
   create(_state: EditorState) {

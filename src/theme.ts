@@ -66,6 +66,7 @@ export const aiTheme = EditorView.baseTheme({
     backgroundColor: "light-dark(rgb(255, 205, 205), rgb(100, 40, 40))",
     position: "relative",
     display: "flex",
+    paddingTop: "0",
     width: "100%",
     alignItems: "center",
     // "@media (prefers-color-scheme: dark)": {
@@ -85,8 +86,8 @@ export const aiTheme = EditorView.baseTheme({
   ".cm-floating-buttons": {
     fontFamily: "sans-serif",
     position: "absolute",
-    bottom: "0",
-    right: "0",
+    top: "-20px",
+    left: "5px",
     display: "flex",
   },
   ".cm-floating-button": {
