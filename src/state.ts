@@ -87,31 +87,6 @@ export interface CompletionState {
 }
 
 /**
- * State effect to show/hide the tooltip
- */
-export const showTooltip = StateEffect.define<boolean>();
-
-/**
- * State field to manage the tooltip visibility
- */
-export const tooltipState = StateField.define<boolean>({
-  create() {
-    return false;
-  },
-  update(value, tr) {
-    for (const e of tr.effects) {
-      if (e.is(showTooltip)) {
-        return e.value;
-      }
-    }
-    return value;
-  },
-  compare(a, b) {
-    return a === b;
-  },
-});
-
-/**
  * State effect to show/hide the input
  */
 export const showInput = StateEffect.define<InputState>();

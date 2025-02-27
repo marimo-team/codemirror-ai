@@ -2,30 +2,6 @@ import { EditorView } from "@codemirror/view";
 
 // Theme for AI features
 export const aiTheme = EditorView.baseTheme({
-  ".cm-ai-tooltip": {
-    userSelect: "none",
-    pointerEvents: "none",
-    fontFamily: "system-ui, -apple-system, sans-serif",
-    position: "absolute",
-    right: "8px",
-    padding: "2px 6px",
-    borderRadius: "4px",
-    fontSize: "12px",
-    backgroundColor: "#0E639C",
-    color: "#ffffff",
-    border: "1px solid transparent",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-    zIndex: "999",
-    "& > span": {
-      pointerEvents: "auto",
-      cursor: "pointer",
-      display: "inline-block",
-      padding: "2px",
-    },
-    "&:hover": {
-      backgroundColor: "#1177bb",
-    },
-  },
   ".cm-ai-input-container": {
     display: "flex",
     flexDirection: "column",
@@ -90,6 +66,7 @@ export const aiTheme = EditorView.baseTheme({
     backgroundColor: "light-dark(rgb(255, 205, 205), rgb(100, 40, 40))",
     position: "relative",
     display: "flex",
+    paddingTop: "0",
     width: "100%",
     alignItems: "center",
     // "@media (prefers-color-scheme: dark)": {
@@ -109,8 +86,8 @@ export const aiTheme = EditorView.baseTheme({
   ".cm-floating-buttons": {
     fontFamily: "sans-serif",
     position: "absolute",
-    bottom: "0",
-    right: "0",
+    top: "-20px",
+    left: "5px",
     display: "flex",
   },
   ".cm-floating-button": {
@@ -124,20 +101,20 @@ export const aiTheme = EditorView.baseTheme({
     backgroundColor: "light-dark(rgb(55, 125, 34), rgb(40, 80, 25))",
     borderTopLeftRadius: "5px",
     borderBottomLeftRadius: "5px",
-    opacity: "0.8",
     color: "white",
+    filter: "brightness(90%)",
     "&:hover": {
-      opacity: "1",
+      filter: "brightness(100%)",
     },
   },
   ".cm-floating-reject": {
     backgroundColor: "light-dark(rgb(220, 53, 69), rgb(180, 40, 50))",
     color: "white",
     borderTopRightRadius: "5px",
-    opacity: "0.8",
     borderBottomRightRadius: "5px",
+    filter: "brightness(90%)",
     "&:hover": {
-      opacity: "1",
+      filter: "brightness(100%)",
     },
   },
   ".hotkey": {

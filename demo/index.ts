@@ -8,7 +8,7 @@ const logger = console;
 (async () => {
   const extensions = [
     basicSetup,
-    EditorView.lineWrapping,
+    // EditorView.lineWrapping,
     python(),
     aiExtension({
       onAcceptEdit: (opts) => {
@@ -27,7 +27,7 @@ const logger = console;
   ];
 
   const editor = new EditorView({
-    doc: `
+    doc: `# A very long comment that can be a selection start point that will stretch off screen of this demo and should still work
 class DataProcessor:
     def __init__(self, data: list[int]):
         self.data = data

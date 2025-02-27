@@ -16,3 +16,7 @@ export function getModSymbol() {
   }
   return modSymbols.default;
 }
+
+export function formatKeymap(keymap: string) {
+  return keymap.replace("Mod", getModSymbol()).replace("-", " ").toUpperCase();
+}
