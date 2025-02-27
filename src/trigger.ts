@@ -134,10 +134,17 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
         let top = coords.top - tooltipRect.height;
         top = domRect ? Math.max(domRect.y, top) : top;
 
+        // Position and show the element
         this.dom.style.left = `${left}px`;
         this.dom.style.top = `${top}px`;
+        requestAnimationFrame(() => {
+          if (this.dom) {
+            this.dom.ariaHidden = "false";
+          }
+        });
       } else {
         this.dom.style.display = "none";
+        this.dom.ariaHidden = "true";
       }
     };
 
@@ -167,6 +174,13 @@ const triggerBaseTheme = EditorView.baseTheme({
     border: "1px solid transparent",
     boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
     zIndex: "999",
+    transition: "opacity 0.5s",
+    "&[aria-hidden='true']": {
+      opacity: "0",
+    },
+    "&[aria-hidden='false']": {
+      opacity: "1",
+    },
     "& > span": {
       pointerEvents: "auto",
       cursor: "pointer",

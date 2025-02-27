@@ -101,20 +101,20 @@ export const aiTheme = EditorView.baseTheme({
     backgroundColor: "light-dark(rgb(55, 125, 34), rgb(40, 80, 25))",
     borderTopLeftRadius: "5px",
     borderBottomLeftRadius: "5px",
-    opacity: "0.8",
     color: "white",
+    filter: "brightness(90%)",
     "&:hover": {
-      opacity: "1",
+      filter: "brightness(100%)",
     },
   },
   ".cm-floating-reject": {
     backgroundColor: "light-dark(rgb(220, 53, 69), rgb(180, 40, 50))",
     color: "white",
     borderTopRightRadius: "5px",
-    opacity: "0.8",
     borderBottomRightRadius: "5px",
+    filter: "brightness(90%)",
     "&:hover": {
-      opacity: "1",
+      filter: "brightness(100%)",
     },
   },
   ".hotkey": {
