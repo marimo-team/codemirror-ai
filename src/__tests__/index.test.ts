@@ -12,6 +12,7 @@ describe("index.ts exports", () => {
         "closeAiEditInput",
         "completionState",
         "defaultKeymaps",
+        "defaultTriggerRenderer",
         "inputPromptDecoration",
         "inputState",
         "inputValueState",
@@ -30,6 +31,9 @@ describe("index.ts exports", () => {
         "showTooltip",
         "tooltipState",
         "tooltipVisibilityListener",
+        "triggerOptions",
+        "triggerPlugin",
+        "triggerViewPlugin",
       ]
     `);
   });
