@@ -1,4 +1,4 @@
-import { EditorView, ViewPlugin, type PluginValue, type ViewUpdate } from "@codemirror/view";
+import { EditorView, type PluginValue, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { showAiEditInput } from "./inline-edit.js";
 import { defaultKeymaps, inputState, optionsFacet } from "./state.js";
 import { formatKeymap } from "./utils.js";

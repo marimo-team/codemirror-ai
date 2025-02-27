@@ -32,8 +32,8 @@ import {
   tooltipState,
 } from "./state.js";
 import { aiTheme } from "./theme.js";
-import { formatKeymap } from "./utils.js";
 import { triggerPlugin } from "./trigger.js";
+import { formatKeymap } from "./utils.js";
 
 // Validation constants
 const MIN_SELECTION_LENGTH = 1;
