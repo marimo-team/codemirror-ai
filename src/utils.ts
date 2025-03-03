@@ -20,3 +20,13 @@ export function getModSymbol() {
 export function formatKeymap(keymap: string) {
   return keymap.replace("Mod", getModSymbol()).replace("-", " ").toUpperCase();
 }
+
+/** Shortcut for creating elements */
+export function ce<T extends keyof HTMLElementTagNameMap>(
+  tag: T,
+  className: string,
+): HTMLElementTagNameMap[T] {
+  const elem = document.createElement(tag);
+  elem.className = className;
+  return elem;
+}

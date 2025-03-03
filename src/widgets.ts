@@ -13,7 +13,7 @@ import {
   showCompletion,
   setInputValue,
 } from "./state.js";
-import { formatKeymap } from "./utils.js";
+import { ce, formatKeymap } from "./utils.js";
 
 /**
  * This is the accept / reject UI that shows when you've
@@ -28,24 +28,20 @@ export class OldCodeWidget extends WidgetType {
   }
 
   toDOM(view: EditorView) {
-    const container = document.createElement("div");
-    container.className = "cm-old-code-container";
+    const container = ce("div", "cm-old-code-container");
     container.setAttribute("role", "region");
     container.setAttribute("aria-label", "Previous code version");
 
-    const oldCodeEl = document.createElement("div");
-    oldCodeEl.className = "cm-old-code cm-line";
+    const oldCodeEl = ce("div", "cm-old-code cm-line");
     oldCodeEl.textContent = this.oldCode;
 
-    const buttonsContainer = document.createElement("div");
-    buttonsContainer.className = "cm-floating-buttons";
+    const buttonsContainer = ce("div", "cm-floating-buttons");
 
     const options = view.state.facet(optionsFacet);
     const keymaps = { ...defaultKeymaps, ...options.keymaps };
 
-    const acceptButton = document.createElement("button");
+    const acceptButton = ce("button", "cm-floating-button cm-floating-accept");
     acceptButton.innerHTML = `<span class="hotkey">${formatKeymap(keymaps.acceptEdit)}</span> Accept`;
-    acceptButton.className = "cm-floating-button cm-floating-accept";
     acceptButton.setAttribute("aria-label", "Accept changes");
     acceptButton.addEventListener("click", (e) => {
       e.preventDefault();
@@ -54,9 +50,8 @@ export class OldCodeWidget extends WidgetType {
       acceptAiEdit(view);
     });
 
-    const rejectButton = document.createElement("button");
+    const rejectButton = ce("button", "cm-floating-button cm-floating-reject");
     rejectButton.innerHTML = `<span class="hotkey">${formatKeymap(keymaps.rejectEdit)}</span> Reject`;
-    rejectButton.className = "cm-floating-button cm-floating-reject";
     rejectButton.setAttribute("aria-label", "Reject changes");
     rejectButton.addEventListener("click", (e) => {
       e.preventDefault();
@@ -97,19 +92,16 @@ export class InputWidget extends WidgetType {
     const options = view.state.facet(optionsFacet);
     const isLoading = view.state.field(loadingState);
 
-    const inputContainer = document.createElement("div");
+    const inputContainer = ce("div", "cm-ai-input-container");
     this.dom = inputContainer;
-    inputContainer.className = "cm-ai-input-container";
 
-    const form = document.createElement("form");
-    form.className = "cm-ai-input-form";
+    const form = ce("form", "cm-ai-input-form");
     form.setAttribute("role", "search");
     form.setAttribute("aria-label", "AI editing instructions");
     form.addEventListener("submit", (e) => e.preventDefault());
 
-    const input = document.createElement("input");
+    const input = ce("input", "cm-ai-input");
     this.input = input;
-    input.className = "cm-ai-input";
     input.placeholder = "Editing instructions...";
     input.setAttribute("aria-label", "AI editing instructions");
     input.setAttribute("autocomplete", "off");
@@ -117,11 +109,9 @@ export class InputWidget extends WidgetType {
     // Set initial value
     input.value = inputValue.inputValue;
 
-    const loadingContainer = document.createElement("div");
-    loadingContainer.className = "cm-ai-loading-container";
+    const loadingContainer = ce("div", "cm-ai-loading-container");
 
-    const loadingIndicator = document.createElement("div");
-    loadingIndicator.classList.add("cm-ai-loading-indicator");
+    const loadingIndicator = ce("div", "cm-ai-loading-indicator");
     loadingIndicator.setAttribute("role", "status");
     loadingIndicator.setAttribute("aria-live", "polite");
     loadingIndicator.textContent = "Generating";
@@ -134,18 +124,18 @@ export class InputWidget extends WidgetType {
       view.focus();
     };
 
-    const cancelButton = document.createElement("button");
-    cancelButton.className = "cm-ai-cancel-btn";
+    const cancelButton = ce("button", "cm-ai-cancel-btn");
     cancelButton.textContent = "Cancel";
     cancelButton.setAttribute("aria-label", "Cancel code generation");
     cancelButton.addEventListener("click", onCancel);
 
     loadingContainer.append(cancelButton, loadingIndicator);
 
-    const helpInfo = document.createElement("button");
-    helpInfo.className = "cm-ai-help-info";
-    helpInfo.textContent = "Esc to close";
-    helpInfo.addEventListener("click", onCancel);
+    const helpInfo = ce("div", "cm-ai-help-info");
+    const helpInfoButton = helpInfo.appendChild(document.createElement("button"));
+    helpInfoButton.className = "cm-ai-help-info-button";
+    helpInfoButton.textContent = "Esc to close";
+    helpInfoButton.addEventListener("click", onCancel);
 
     if (isLoading) {
       helpInfo.classList.add("hidden");
@@ -236,17 +226,16 @@ export class InputWidget extends WidgetType {
     };
 
     const renderHelpInfo = (value: string) => {
-      helpInfo.textContent = "";
+      helpInfoButton.textContent = "";
       if (value) {
-        const generateBtn = document.createElement("button");
-        generateBtn.className = "cm-ai-generate-btn";
+        const generateBtn = ce("button", "cm-ai-generate-btn");
         generateBtn.textContent = "⏎ Generate";
         generateBtn.setAttribute("aria-label", "Generate code");
         generateBtn.addEventListener("click", handleSubmit);
         helpInfo.appendChild(generateBtn);
       } else {
         const escText = document.createTextNode("Esc to close");
-        helpInfo.appendChild(escText);
+        helpInfoButton.appendChild(escText);
       }
     };
 
