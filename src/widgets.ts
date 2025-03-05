@@ -28,6 +28,14 @@ export class OldCodeWidget extends WidgetType {
   }
 
   toDOM(view: EditorView) {
+    /**
+     * div.cm-old-code-container
+     * -- div.cm-old-code.cm-line
+     * -- div.cm-floating-buttons
+     * ---- div.cm-floating-button.cm-floating-accept
+     * ---- div.cm-floating-button.cm-floating-reject
+     */
+
     const container = ce("div", "cm-old-code-container");
     container.setAttribute("role", "region");
     container.setAttribute("aria-label", "Previous code version");
@@ -82,6 +90,8 @@ export class InputWidget extends WidgetType {
   private input: HTMLInputElement | null = null;
   private loadingContainer: HTMLDivElement | null = null;
   private helpInfo: HTMLDivElement | null = null;
+  private inputContainer: HTMLDivElement | null = null;
+  private form: HTMLFormElement | null = null;
   private view: EditorView | null = null;
 
   constructor(private complete: CompleteFunction) {
@@ -108,9 +118,11 @@ export class InputWidget extends WidgetType {
      */
 
     const inputContainer = ce("div", "cm-ai-input-container");
+    this.inputContainer = inputContainer;
     this.dom = inputContainer;
 
     const form = ce("form", "cm-ai-input-form");
+    this.form = form;
     form.setAttribute("role", "search");
     form.setAttribute("aria-label", "AI editing instructions");
     form.addEventListener("submit", (e) => e.preventDefault());
@@ -153,12 +165,7 @@ export class InputWidget extends WidgetType {
     generateButton.setAttribute("aria-label", "Generate code");
     generateButton.addEventListener("click", this.handleSubmit);
 
-    if (isLoading) {
-      helpInfo.classList.add("hidden");
-      input.disabled = true;
-    } else {
-      loadingContainer.classList.add("hidden");
-    }
+    this.toggleLoading(isLoading);
 
     // Focus if not the first render
     if (inputValue.shouldFocus) {
@@ -169,6 +176,11 @@ export class InputWidget extends WidgetType {
         view.dispatch({ effects: setInputFocus.of(false) });
       });
     }
+
+    renderHelpInfo(input.value);
+
+    input.addEventListener("input", handleInput);
+    input.addEventListener("keydown", this.onKeyDown);
 
     // Show the generate button if there's a value,
     // or the help/cancel button if there isn't.
@@ -186,13 +198,21 @@ export class InputWidget extends WidgetType {
       renderHelpInfo(value);
     }
 
-    renderHelpInfo(input.value);
-
-    input.addEventListener("input", handleInput);
-    input.addEventListener("keydown", this.onKeyDown);
-
-    inputContainer.append(form, loadingContainer, helpInfo);
     return inputContainer;
+  }
+
+  /**
+   * Determines whether we show the loading UI or the input UI,
+   * by putting either helpInfo or loadingContainer
+   * inside of inputContainer
+   */
+  toggleLoading(loading: boolean) {
+    if (this.inputContainer && this.form && this.loadingContainer && this.helpInfo) {
+      this.inputContainer?.replaceChildren(
+        this.form,
+        loading ? this.loadingContainer : this.helpInfo,
+      );
+    }
   }
 
   onKeyDown = async (e: KeyboardEvent) => {
@@ -223,8 +243,8 @@ export class InputWidget extends WidgetType {
     // the helpInfo div.
     e?.stopPropagation();
     const state = view.state.field(inputState);
-    const { input, loadingContainer, helpInfo } = this;
-    if (!(input && loadingContainer && helpInfo)) return;
+    const { input } = this;
+    if (!input) return;
     const prompt = input.value.trim();
 
     // Input validation
@@ -242,9 +262,7 @@ export class InputWidget extends WidgetType {
 
     this.abortController = new AbortController();
     view.dispatch({ effects: setLoading.of(true) });
-    loadingContainer.classList.remove("hidden");
-    helpInfo.classList.add("hidden");
-    input.disabled = true;
+    this.toggleLoading(true);
 
     try {
       const result = await this.complete({
@@ -283,9 +301,7 @@ export class InputWidget extends WidgetType {
       options.onError?.(error as Error);
     } finally {
       this.cleanup();
-      loadingContainer.classList.add("hidden");
-      helpInfo.classList.remove("hidden");
-      input.disabled = false;
+      this.toggleLoading(false);
       view.focus();
     }
   };
