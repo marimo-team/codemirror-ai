@@ -22,7 +22,7 @@ export const aiTheme = EditorView.baseTheme({
     borderRadius: "5px",
     fontSize: "12px",
   },
-  ".cm-ai-help-info": {
+  ".cm-ai-help-info-button": {
     fontSize: "10px",
     paddingLeft: "10px",
     height: "18px",
@@ -33,10 +33,10 @@ export const aiTheme = EditorView.baseTheme({
     // 	color: "rgb(170, 170, 170)",
     // },
   },
-  ".cm-ai-help-info:hover": {
+  ".cm-ai-help-info-button:hover": {
     color: "light-dark(rgb(89, 97, 105), rgb(190, 190, 190))",
   },
-  ".cm-ai-generate-btn": {
+  ".cm-ai-generate-button": {
     background: "#0E639C",
     border: "none",
     padding: "2px 6px",
@@ -165,7 +165,7 @@ export const aiTheme = EditorView.baseTheme({
     alignItems: "center",
     padding: "0 8px",
   },
-  ".cm-ai-cancel-btn": {
+  ".cm-ai-cancel-button": {
     padding: "2px 8px",
     fontSize: "10px",
     borderRadius: "4px",

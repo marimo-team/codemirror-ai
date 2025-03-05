@@ -1,7 +1,7 @@
 import { EditorView, type PluginValue, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { showAiEditInput } from "./commands.js";
 import { defaultKeymaps, inputState, optionsFacet } from "./state.js";
-import { formatKeymap } from "./utils.js";
+import { ce, formatKeymap } from "./utils.js";
 import { combineConfig, Facet } from "@codemirror/state";
 
 /**
@@ -18,10 +18,8 @@ interface TriggerOptions {
 export function defaultTriggerRenderer(view: EditorView) {
   const options = view.state.facet(optionsFacet);
   const keymaps = { ...defaultKeymaps, ...options.keymaps };
-  const dom = document.createElement("div");
-  dom.className = "cm-ai-tooltip";
-  const tooltip = dom.appendChild(document.createElement("div"));
-  tooltip.className = "cm-ai-tooltip-button";
+  const dom = ce("div", "cm-ai-tooltip");
+  const tooltip = dom.appendChild(ce("div", "cm-ai-tooltip-button"));
   tooltip.innerHTML = `<span>Edit <span class="hotkey">${formatKeymap(keymaps.showInput)}</span></span>`;
 
   // NOTE: preventing mousedown from propagating here prevents

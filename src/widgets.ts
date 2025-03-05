@@ -13,7 +13,7 @@ import {
   showCompletion,
   setInputValue,
 } from "./state.js";
-import { formatKeymap } from "./utils.js";
+import { ce, formatKeymap } from "./utils.js";
 
 /**
  * This is the accept / reject UI that shows when you've
@@ -28,24 +28,28 @@ export class OldCodeWidget extends WidgetType {
   }
 
   toDOM(view: EditorView) {
-    const container = document.createElement("div");
-    container.className = "cm-old-code-container";
+    /**
+     * div.cm-old-code-container
+     * -- div.cm-old-code.cm-line
+     * -- div.cm-floating-buttons
+     * ---- div.cm-floating-button.cm-floating-accept
+     * ---- div.cm-floating-button.cm-floating-reject
+     */
+
+    const container = ce("div", "cm-old-code-container");
     container.setAttribute("role", "region");
     container.setAttribute("aria-label", "Previous code version");
 
-    const oldCodeEl = document.createElement("div");
-    oldCodeEl.className = "cm-old-code cm-line";
+    const oldCodeEl = ce("div", "cm-old-code cm-line");
     oldCodeEl.textContent = this.oldCode;
 
-    const buttonsContainer = document.createElement("div");
-    buttonsContainer.className = "cm-floating-buttons";
+    const buttonsContainer = ce("div", "cm-floating-buttons");
 
     const options = view.state.facet(optionsFacet);
     const keymaps = { ...defaultKeymaps, ...options.keymaps };
 
-    const acceptButton = document.createElement("button");
+    const acceptButton = ce("button", "cm-floating-button cm-floating-accept");
     acceptButton.innerHTML = `<span class="hotkey">${formatKeymap(keymaps.acceptEdit)}</span> Accept`;
-    acceptButton.className = "cm-floating-button cm-floating-accept";
     acceptButton.setAttribute("aria-label", "Accept changes");
     acceptButton.addEventListener("click", (e) => {
       e.preventDefault();
@@ -54,9 +58,8 @@ export class OldCodeWidget extends WidgetType {
       acceptAiEdit(view);
     });
 
-    const rejectButton = document.createElement("button");
+    const rejectButton = ce("button", "cm-floating-button cm-floating-reject");
     rejectButton.innerHTML = `<span class="hotkey">${formatKeymap(keymaps.rejectEdit)}</span> Reject`;
-    rejectButton.className = "cm-floating-button cm-floating-reject";
     rejectButton.setAttribute("aria-label", "Reject changes");
     rejectButton.addEventListener("click", (e) => {
       e.preventDefault();
@@ -85,6 +88,11 @@ export class InputWidget extends WidgetType {
   private abortController: AbortController | null = null;
   private dom: HTMLElement | null = null;
   private input: HTMLInputElement | null = null;
+  private loadingContainer: HTMLDivElement | null = null;
+  private helpInfo: HTMLDivElement | null = null;
+  private inputContainer: HTMLDivElement | null = null;
+  private form: HTMLFormElement | null = null;
+  private view: EditorView | null = null;
 
   constructor(private complete: CompleteFunction) {
     super();
@@ -93,23 +101,35 @@ export class InputWidget extends WidgetType {
   toDOM(view: EditorView) {
     if (this.dom) return this.dom;
 
+    this.view = view;
     const inputValue = view.state.field(inputValueState);
-    const options = view.state.facet(optionsFacet);
     const isLoading = view.state.field(loadingState);
 
-    const inputContainer = document.createElement("div");
-    this.dom = inputContainer;
-    inputContainer.className = "cm-ai-input-container";
+    /**
+     * div.cm-ai-input-container
+     * -- form.cm-ai-input-form
+     * ---- input.cm-ai-input
+     * -- div.cm-ai-loading-container
+     * ---- button.cm-ai-cancel-button
+     * ---- div.cm-ai-loading-indicator
+     * -- div.cm-ai-help-info
+     * ---- button.cm-ai-help-info-button
+     * ---- button.cm-ai-generate-button
+     */
 
-    const form = document.createElement("form");
-    form.className = "cm-ai-input-form";
+    const inputContainer = ce("div", "cm-ai-input-container");
+    this.inputContainer = inputContainer;
+    this.dom = inputContainer;
+
+    const form = ce("form", "cm-ai-input-form");
+    this.form = form;
     form.setAttribute("role", "search");
     form.setAttribute("aria-label", "AI editing instructions");
     form.addEventListener("submit", (e) => e.preventDefault());
 
-    const input = document.createElement("input");
+    const input = ce("input", "cm-ai-input");
     this.input = input;
-    input.className = "cm-ai-input";
+    form.append(input);
     input.placeholder = "Editing instructions...";
     input.setAttribute("aria-label", "AI editing instructions");
     input.setAttribute("autocomplete", "off");
@@ -117,42 +137,35 @@ export class InputWidget extends WidgetType {
     // Set initial value
     input.value = inputValue.inputValue;
 
-    const loadingContainer = document.createElement("div");
-    loadingContainer.className = "cm-ai-loading-container";
+    const loadingContainer = ce("div", "cm-ai-loading-container");
+    this.loadingContainer = loadingContainer;
 
-    const loadingIndicator = document.createElement("div");
-    loadingIndicator.classList.add("cm-ai-loading-indicator");
+    const loadingIndicator = ce("div", "cm-ai-loading-indicator");
     loadingIndicator.setAttribute("role", "status");
     loadingIndicator.setAttribute("aria-live", "polite");
     loadingIndicator.textContent = "Generating";
 
-    const onCancel = () => {
-      this.cleanup();
-      view.dispatch({
-        effects: [showInput.of({ show: false, lineFrom: 0, lineTo: 0 }), setLoading.of(false)],
-      });
-      view.focus();
-    };
-
-    const cancelButton = document.createElement("button");
-    cancelButton.className = "cm-ai-cancel-btn";
+    const cancelButton = ce("button", "cm-ai-cancel-button");
     cancelButton.textContent = "Cancel";
     cancelButton.setAttribute("aria-label", "Cancel code generation");
-    cancelButton.addEventListener("click", onCancel);
+    cancelButton.addEventListener("click", this.onCancel);
 
     loadingContainer.append(cancelButton, loadingIndicator);
 
-    const helpInfo = document.createElement("button");
-    helpInfo.className = "cm-ai-help-info";
-    helpInfo.textContent = "Esc to close";
-    helpInfo.addEventListener("click", onCancel);
+    const helpInfo = ce("div", "cm-ai-help-info");
+    this.helpInfo = helpInfo;
 
-    if (isLoading) {
-      helpInfo.classList.add("hidden");
-      input.disabled = true;
-    } else {
-      loadingContainer.classList.add("hidden");
-    }
+    const helpInfoButton = helpInfo.appendChild(document.createElement("button"));
+    helpInfoButton.className = "cm-ai-help-info-button";
+    helpInfoButton.textContent = "Esc to close";
+    helpInfoButton.addEventListener("click", this.onCancel);
+
+    const generateButton = ce("button", "cm-ai-generate-button");
+    generateButton.textContent = "⏎ Generate";
+    generateButton.setAttribute("aria-label", "Generate code");
+    generateButton.addEventListener("click", this.handleSubmit);
+
+    this.toggleLoading(isLoading);
 
     // Focus if not the first render
     if (inputValue.shouldFocus) {
@@ -164,119 +177,134 @@ export class InputWidget extends WidgetType {
       });
     }
 
-    const handleSubmit = async (e?: Event) => {
-      // Prevent a click event on the submit button
-      // passing-through to the cancel button when we unhide
-      // the helpInfo div.
-      e?.stopPropagation();
-      const state = view.state.field(inputState);
-      const prompt = input.value.trim();
+    renderHelpInfo(input.value);
 
-      // Input validation
-      if (!state.show || !prompt) return;
+    input.addEventListener("input", handleInput);
+    input.addEventListener("keydown", this.onKeyDown);
 
-      // Get the full line content
-      const fromLine = view.state.doc.line(state.lineFrom);
-      const toLine = view.state.doc.line(state.lineTo);
-      const fromPos = fromLine.from;
-      const toPos = toLine.to;
-
-      const oldCode = view.state.sliceDoc(fromPos, toPos);
-      const codeBefore = view.state.sliceDoc(0, fromPos);
-      const codeAfter = view.state.sliceDoc(toPos);
-
-      this.abortController = new AbortController();
-      view.dispatch({ effects: setLoading.of(true) });
-      loadingContainer.classList.remove("hidden");
-      helpInfo.classList.add("hidden");
-      input.disabled = true;
-
-      try {
-        const result = await this.complete({
-          prompt,
-          selection: oldCode,
-          codeBefore,
-          codeAfter,
-          editorView: view,
-          signal: this.abortController.signal,
-        });
-
-        if (!view.state.field(inputState).show) return;
-
-        // Validate result
-        if (!result || typeof result !== "string") {
-          throw new Error("Invalid completion result");
-        }
-
-        view.dispatch({
-          changes: { from: fromPos, to: toPos, insert: result },
-          effects: [
-            showInput.of({ show: false, lineFrom: 0, lineTo: 0 }),
-            showCompletion.of({
-              from: fromPos,
-              to: fromPos + result.length,
-              oldCode,
-              newCode: result,
-            }),
-            setLoading.of(false),
-          ],
-        });
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
-        options.onError?.(error as Error);
-      } finally {
-        this.cleanup();
-        loadingContainer.classList.add("hidden");
-        helpInfo.classList.remove("hidden");
-        input.disabled = false;
-        view.focus();
-      }
-    };
-
-    const renderHelpInfo = (value: string) => {
-      helpInfo.textContent = "";
-      if (value) {
-        const generateBtn = document.createElement("button");
-        generateBtn.className = "cm-ai-generate-btn";
-        generateBtn.textContent = "⏎ Generate";
-        generateBtn.setAttribute("aria-label", "Generate code");
-        generateBtn.addEventListener("click", handleSubmit);
-        helpInfo.appendChild(generateBtn);
-      } else {
-        const escText = document.createTextNode("Esc to close");
-        helpInfo.appendChild(escText);
-      }
-    };
+    // Show the generate button if there's a value,
+    // or the help/cancel button if there isn't.
+    function renderHelpInfo(value: string) {
+      helpInfo.replaceChildren(value ? generateButton : helpInfoButton);
+    }
 
     // Handle input changes
     let lastValue = "";
-    const handleInput = () => {
+    function handleInput() {
       view.dispatch({ effects: setInputValue.of(input.value) });
       const value = input.value.trim();
       if (value === lastValue) return;
       lastValue = value;
       renderHelpInfo(value);
-    };
+    }
 
-    renderHelpInfo(input.value);
-
-    input.addEventListener("input", handleInput);
-
-    input.addEventListener("keydown", async (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        await handleSubmit();
-      } else if (e.key === "Escape") {
-        onCancel();
-      }
-    });
-
-    form.append(input);
-    inputContainer.append(form, loadingContainer, helpInfo);
     return inputContainer;
   }
+
+  /**
+   * Determines whether we show the loading UI or the input UI,
+   * by putting either helpInfo or loadingContainer
+   * inside of inputContainer
+   */
+  toggleLoading(loading: boolean) {
+    if (this.inputContainer && this.form && this.loadingContainer && this.helpInfo) {
+      this.inputContainer?.replaceChildren(
+        this.form,
+        loading ? this.loadingContainer : this.helpInfo,
+      );
+    }
+  }
+
+  onKeyDown = async (e: KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      await this.handleSubmit();
+    } else if (e.key === "Escape") {
+      this.onCancel();
+    }
+  };
+
+  onCancel = () => {
+    this.cleanup();
+    const view = this.view;
+    if (!view) return;
+    view.dispatch({
+      effects: [showInput.of({ show: false, lineFrom: 0, lineTo: 0 }), setLoading.of(false)],
+    });
+    view.focus();
+  };
+
+  handleSubmit = async (e?: Event) => {
+    const view = this.view;
+    if (!view) return;
+    const options = view.state.facet(optionsFacet);
+    // Prevent a click event on the submit button
+    // passing-through to the cancel button when we unhide
+    // the helpInfo div.
+    e?.stopPropagation();
+    const state = view.state.field(inputState);
+    const { input } = this;
+    if (!input) return;
+    const prompt = input.value.trim();
+
+    // Input validation
+    if (!state.show || !prompt) return;
+
+    // Get the full line content
+    const fromLine = view.state.doc.line(state.lineFrom);
+    const toLine = view.state.doc.line(state.lineTo);
+    const fromPos = fromLine.from;
+    const toPos = toLine.to;
+
+    const oldCode = view.state.sliceDoc(fromPos, toPos);
+    const codeBefore = view.state.sliceDoc(0, fromPos);
+    const codeAfter = view.state.sliceDoc(toPos);
+
+    this.abortController = new AbortController();
+    view.dispatch({ effects: setLoading.of(true) });
+    this.toggleLoading(true);
+
+    try {
+      const result = await this.complete({
+        prompt,
+        selection: oldCode,
+        codeBefore,
+        codeAfter,
+        editorView: view,
+        signal: this.abortController.signal,
+      });
+
+      if (!view.state.field(inputState).show) return;
+
+      // Validate result
+      if (!result || typeof result !== "string") {
+        throw new Error("Invalid completion result");
+      }
+
+      view.dispatch({
+        changes: { from: fromPos, to: toPos, insert: result },
+        effects: [
+          showInput.of({ show: false, lineFrom: 0, lineTo: 0 }),
+          showCompletion.of({
+            from: fromPos,
+            to: fromPos + result.length,
+            oldCode,
+            newCode: result,
+          }),
+          setLoading.of(false),
+        ],
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+      options.onError?.(error as Error);
+    } finally {
+      this.cleanup();
+      this.toggleLoading(false);
+      view.focus();
+    }
+  };
 
   updateDOM(dom: HTMLElement, _view: EditorView): boolean {
     // Keep existing DOM, just update state if needed
