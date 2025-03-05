@@ -36,7 +36,7 @@ export const aiTheme = EditorView.baseTheme({
   ".cm-ai-help-info-button:hover": {
     color: "light-dark(rgb(89, 97, 105), rgb(190, 190, 190))",
   },
-  ".cm-ai-generate-btn": {
+  ".cm-ai-generate-button": {
     background: "#0E639C",
     border: "none",
     padding: "2px 6px",
@@ -165,7 +165,7 @@ export const aiTheme = EditorView.baseTheme({
     alignItems: "center",
     padding: "0 8px",
   },
-  ".cm-ai-cancel-btn": {
+  ".cm-ai-cancel-button": {
     padding: "2px 8px",
     fontSize: "10px",
     borderRadius: "4px",
