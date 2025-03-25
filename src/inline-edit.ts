@@ -1,5 +1,6 @@
 import { type EditorState, type Extension, Prec, type Range, StateField } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, keymap } from "@codemirror/view";
+import { acceptAiEdit, rejectAiEdit, showAiEditInput } from "./commands.js";
 import {
   type AiOptions,
   completionState,
@@ -12,7 +13,6 @@ import {
 } from "./state.js";
 import { aiTheme } from "./theme.js";
 import { triggerPlugin } from "./trigger.js";
-import { showAiEditInput, acceptAiEdit, rejectAiEdit } from "./commands.js";
 import { InputWidget, OldCodeWidget } from "./widgets.js";
 
 /**

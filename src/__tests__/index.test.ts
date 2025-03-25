@@ -7,12 +7,15 @@ describe("index.ts exports", () => {
     expect(sortedExports).toMatchInlineSnapshot(`
       [
         "acceptAiEdit",
+        "acceptInlineCompletion",
         "aiExtension",
         "aiTheme",
         "closeAiEditInput",
         "completionState",
         "defaultKeymaps",
         "defaultTriggerRenderer",
+        "inlineCompletion",
+        "inlineCompletionKeymap",
         "inputPromptDecoration",
         "inputState",
         "inputValueState",
@@ -22,6 +25,7 @@ describe("index.ts exports", () => {
         "oldCodeDecoration",
         "optionsFacet",
         "rejectAiEdit",
+        "rejectInlineCompletion",
         "setInputFocus",
         "setInputValue",
         "setLoading",

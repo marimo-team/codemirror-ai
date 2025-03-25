@@ -1,17 +1,17 @@
-import { WidgetType, type EditorView } from "@codemirror/view";
+import { type EditorView, WidgetType } from "@codemirror/view";
 import { acceptAiEdit, rejectAiEdit } from "./commands.js";
 import {
-  optionsFacet,
-  defaultKeymaps,
   type CompleteFunction,
+  defaultKeymaps,
+  inputState,
   inputValueState,
   loadingState,
-  showInput,
-  setLoading,
+  optionsFacet,
   setInputFocus,
-  inputState,
-  showCompletion,
   setInputValue,
+  setLoading,
+  showCompletion,
+  showInput,
 } from "./state.js";
 import { ce, formatKeymap } from "./utils.js";
 

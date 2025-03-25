@@ -1,8 +1,8 @@
+import { Facet, combineConfig } from "@codemirror/state";
 import { EditorView, type PluginValue, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { showAiEditInput } from "./commands.js";
 import { defaultKeymaps, inputState, optionsFacet } from "./state.js";
 import { ce, formatKeymap } from "./utils.js";
-import { combineConfig, Facet } from "@codemirror/state";
 
 /**
  * Options to customize trigger rendering.
