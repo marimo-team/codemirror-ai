@@ -1,12 +1,12 @@
 import { EditorSelection } from "@codemirror/state";
 import type { Command, EditorView } from "@codemirror/view";
 import {
-  showInput,
+  completionState,
   setInputFocus,
   setInputValue,
   setLoading,
-  completionState,
   showCompletion,
+  showInput,
 } from "./state.js";
 
 // Validation constants
