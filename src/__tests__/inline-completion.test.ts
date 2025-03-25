@@ -47,6 +47,7 @@ describe("inline-completion", () => {
 
     // Verify that fetchFn was called with the current state
     expect(mockFetchFn).toHaveBeenCalledTimes(1);
+    expect(mockFetchFn).toHaveBeenCalledWith(expect.any(EditorState), expect.any(AbortSignal));
   });
 
   it("should accept inline completion", async () => {
@@ -151,7 +152,10 @@ describe("inline-completion events", () => {
 
     acceptInlineCompletion(view);
 
-    expect(mockEvents.onSuggestionAccepted).toHaveBeenCalledWith("suggestion");
+    expect(mockEvents.onSuggestionAccepted).toHaveBeenCalledWith(
+      expect.any(EditorView),
+      "suggestion",
+    );
   });
 
   it("should call onSuggestionRejected when rejecting completion", async () => {
@@ -163,7 +167,10 @@ describe("inline-completion events", () => {
 
     rejectInlineCompletion(view);
 
-    expect(mockEvents.onSuggestionRejected).toHaveBeenCalledWith("suggestion");
+    expect(mockEvents.onSuggestionRejected).toHaveBeenCalledWith(
+      expect.any(EditorView),
+      "suggestion",
+    );
   });
 
   it("should call beforeSuggestionFetch before fetching suggestions", async () => {
@@ -172,7 +179,7 @@ describe("inline-completion events", () => {
     });
     await vi.runAllTimersAsync();
 
-    expect(mockEvents.beforeSuggestionFetch).toHaveBeenCalledWith(expect.any(EditorState));
+    expect(mockEvents.beforeSuggestionFetch).toHaveBeenCalledWith(expect.any(EditorView));
     expect(mockFetchFn).toHaveBeenCalled();
   });
 

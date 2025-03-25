@@ -93,10 +93,10 @@ type InlineFetchFn = (state: EditorState, signal: AbortSignal) => Promise<string
 
 // Add these near the top with other types
 type SuggestionEvents = {
-  onSuggestionAccepted?: (suggestion: string) => void;
-  onSuggestionRejected?: (suggestion: string) => void;
-  beforeSuggestionFetch?: (state: EditorState) => boolean;
-  shouldShowSuggestion?: (state: EditorState, suggestion: string) => boolean;
+  onSuggestionAccepted?: (view: EditorView, suggestion: string) => void;
+  onSuggestionRejected?: (view: EditorView, suggestion: string) => void;
+  beforeSuggestionFetch?: (view: EditorView) => boolean;
+  shouldShowSuggestion?: (view: EditorView, suggestion: string) => boolean;
 };
 
 type InlineSuggestionOptions = {
@@ -158,7 +158,7 @@ const fetchSuggestion = (fetchFn: InlineFetchFn, options: InlineSuggestionOption
         if (!update.docChanged) return;
 
         // Check if we should fetch
-        if (options.events?.beforeSuggestionFetch?.(update.state) === false) {
+        if (options.events?.beforeSuggestionFetch?.(update.view) === false) {
           return;
         }
 
@@ -185,7 +185,7 @@ const fetchSuggestion = (fetchFn: InlineFetchFn, options: InlineSuggestionOption
             return;
           }
 
-          if (options.events?.shouldShowSuggestion?.(update.state, result) === false) {
+          if (options.events?.shouldShowSuggestion?.(update.view, result) === false) {
             return;
           }
 
@@ -281,7 +281,7 @@ const acceptInlineCompletion: Command = (view: EditorView) => {
   });
 
   // Trigger event
-  config.events?.onSuggestionAccepted?.(suggestionText);
+  config.events?.onSuggestionAccepted?.(view, suggestionText);
   return true;
 };
 
@@ -296,7 +296,7 @@ const rejectInlineCompletion: Command = (view: EditorView) => {
   });
 
   // Trigger event
-  config.events?.onSuggestionRejected?.(suggestionText);
+  config.events?.onSuggestionRejected?.(view, suggestionText);
   return true;
 };
 
