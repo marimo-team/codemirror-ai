@@ -49,7 +49,11 @@ async function fetchPrediction(opts: {
 	}
 
 	try {
-		return await response.json();
+		const data = await response.json();
+		return {
+			prediction: data.output.content[0].text,
+			prompt: message,
+		};
 	} catch (error) {
 		throw new Error(`Error parsing prediction response: ${error}`);
 	}
