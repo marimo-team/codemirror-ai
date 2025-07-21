@@ -1,33 +1,13 @@
 import { python } from "@codemirror/lang-python";
 import { tooltips } from "@codemirror/view";
-import { EditorView, basicSetup } from "codemirror";
+import { basicSetup, EditorView } from "codemirror";
 import { aiExtension } from "../src/inline-edit.js";
+import { PredicationBackend } from "../src/next-edit-predication/backend.js";
+import { nextEditPrediction } from "../src/next-edit-predication/extension.js";
 
 const logger = console;
 
-(async () => {
-  const extensions = [
-    basicSetup,
-    // EditorView.lineWrapping,
-    python(),
-    aiExtension({
-      onAcceptEdit: (opts) => {
-        logger.log("Accepted edit", opts);
-      },
-      onRejectEdit: (opts) => {
-        logger.log("Rejected edit", opts);
-      },
-      prompt: async ({ selection, codeBefore, codeAfter, prompt }) => {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        logger.log({ selection, codeBefore, codeAfter, prompt });
-        return `# Adding a TODO: \n# ${prompt}`;
-      },
-    }),
-    tooltips(),
-  ];
-
-  const editor = new EditorView({
-    doc: `# A very long comment that can be a selection start point that will stretch off screen of this demo and should still work
+const doc = `# A very long comment that can be a selection start point that will stretch off screen of this demo and should still work
 class DataProcessor:
     def __init__(self, data: list[int]):
         self.data = data
@@ -54,10 +34,56 @@ def quick_sort(arr: list) -> list:
     return quick_sort(left) + middle + quick_sort(right)
 
 quick_sort([1, 2, 3, 4, 5])
-${"\n".repeat(4)}`,
-    extensions,
-    parent: document.querySelector("#editor") ?? undefined,
-  });
+${"\n".repeat(4)}`;
 
-  return { editor };
+(async () => {
+	const extensions = [
+		basicSetup,
+		// EditorView.lineWrapping,
+		python(),
+		aiExtension({
+			onAcceptEdit: (opts) => {
+				logger.log("Accepted edit", opts);
+			},
+			onRejectEdit: (opts) => {
+				logger.log("Rejected edit", opts);
+			},
+			prompt: async ({ selection, codeBefore, codeAfter, prompt }) => {
+				await new Promise((resolve) => setTimeout(resolve, 2000));
+				logger.log({ selection, codeBefore, codeAfter, prompt });
+				return `# Adding a TODO: \n# ${prompt}`;
+			},
+		}),
+		tooltips(),
+	];
+
+	// Inline-edit tooltip
+	const editor = new EditorView({
+		doc: doc,
+		extensions,
+		parent: document.querySelector("#editor") ?? undefined,
+	});
+
+	// Next-edit-predication
+	const nextEditPredicationEditor = new EditorView({
+		doc: doc,
+		extensions: [
+			basicSetup,
+			python(),
+			nextEditPrediction({
+				fetchFn: PredicationBackend.oxen({
+					model: "oxen:ox-wonderful-pink-swordtail",
+					baseUrl: "https://hub.oxen.ai/api/chat",
+					headers: {
+						Authorization: `Bearer ${import.meta.env.VITE_API_KEY}`,
+					},
+				}),
+			}),
+			tooltips(),
+		],
+		parent:
+			document.querySelector("#next-edit-predication-editor") ?? undefined,
+	});
+
+	return { editor, nextEditPredicationEditor };
 })();

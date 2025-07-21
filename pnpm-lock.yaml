@@ -11,6 +11,9 @@ importers:
       '@codemirror/state':
         specifier: ^6
         version: 6.5.0
+      diff:
+        specifier: ^8.0.2
+        version: 8.0.2
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.0.0
@@ -21,6 +24,9 @@ importers:
       '@codemirror/view':
         specifier: ^6.36.2
         version: 6.36.7
+      '@types/diff':
+        specifier: ^8.0.0
+        version: 8.0.0
       '@vitest/coverage-v8':
         specifier: 3.1.3
         version: 3.1.3(vitest@3.1.3(@types/node@22.13.1)(happy-dom@15.11.7)(jsdom@26.1.0)(yaml@2.7.0))
@@ -476,6 +482,10 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@types/diff@8.0.0':
+    resolution: {integrity: sha512-o7jqJM04gfaYrdCecCVMbZhNdG6T1MHg/oQoRFdERLV+4d+V7FijhiEAbFu0Usww84Yijk9yH58U4Jk4HbtzZw==}
+    deprecated: This is a stub types definition. diff provides its own type definitions, so you do not need this installed.
+
   '@types/estree@1.0.7':
     resolution: {integrity: sha512-w28IoSUCJpidD/TGviZwwMJckNESJZXFu7NBZ5YJ4mEUnNraUn9Pm8HSZm/jDF1pDWYKspWE7oVphigUPRakIQ==}
 
@@ -629,6 +639,10 @@ packages:
   deep-eql@5.0.2:
     resolution: {integrity: sha512-h5k/5U50IJJFpzfL6nO9jaaumfjO/f2NjK/oYB2Djzm4p9L+3T9qWpZqZ2hAbLPuuYq9wrU08WQyBTL5GbPk5Q==}
     engines: {node: '>=6'}
+
+  diff@8.0.2:
+    resolution: {integrity: sha512-sSuxWU5j5SR9QQji/o2qMvqRNYRDOcBTgsJ/DeCf4iSN4gW+gNMXM7wFIP+fdXZxoNiAnHUTGjCr+TSWXdRDKg==}
+    engines: {node: '>=0.3.1'}
 
   eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
@@ -1602,6 +1616,10 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.40.1':
     optional: true
 
+  '@types/diff@8.0.0':
+    dependencies:
+      diff: 8.0.2
+
   '@types/estree@1.0.7': {}
 
   '@types/node@22.13.1':
@@ -1763,6 +1781,8 @@ snapshots:
   decimal.js@10.5.0: {}
 
   deep-eql@5.0.2: {}
+
+  diff@8.0.2: {}
 
   eastasianwidth@0.2.0: {}
 
