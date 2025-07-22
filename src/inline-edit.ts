@@ -51,6 +51,8 @@ export function aiExtension(options: AiOptions): Extension[] {
     throw new Error("prompt function is required");
   }
 
+  const keymapConfig = {...defaultKeymaps, ...options.keymaps}
+
   return [
     optionsFacet.of(options),
     inputState,
@@ -61,14 +63,14 @@ export function aiExtension(options: AiOptions): Extension[] {
     aiTheme,
     keymap.of([
       {
-        key: defaultKeymaps.showInput,
+        key: keymapConfig.showInput,
         run: showAiEditInput,
       },
     ]),
     Prec.highest([
       keymap.of([
-        { key: defaultKeymaps.acceptEdit, run: acceptAiEdit },
-        { key: defaultKeymaps.rejectEdit, run: rejectAiEdit },
+        { key: keymapConfig.acceptEdit, run: acceptAiEdit },
+        { key: keymapConfig.rejectEdit, run: rejectAiEdit },
       ]),
     ]),
     lineShiftListener,
