@@ -15,20 +15,15 @@ import {
 	type ViewUpdate,
 	WidgetType,
 } from "@codemirror/view";
-import { diffChars } from "diff";
 import { debouncePromise } from "../utils.js";
+import { debug } from "./debug.js";
+import { type DiffOperation, extractDiffParts } from "./diff.js";
 import {
 	CURSOR_MARKER,
-	type DiffPart,
 	type DiffSuggestion,
 	type NextEditPredictor,
 } from "./types.js";
 import { insertDiffText } from "./utils.js";
-
-const debug = (...args: unknown[]) => {
-	// biome-ignore lint/suspicious/noConsole: debug
-	console.debug(...args);
-};
 
 /**
  * Current state of the autosuggestion
@@ -69,10 +64,10 @@ const NextEditPredictionEffect = StateEffect.define<{
  * Widget for displaying ghost text inline with diff information
  */
 class GhostTextWidget extends WidgetType {
-	diffParts: DiffPart[];
+	diffParts: DiffOperation[];
 	suggestion: DiffSuggestion;
 
-	constructor(diffParts: DiffPart[], suggestion: DiffSuggestion) {
+	constructor(diffParts: DiffOperation[], suggestion: DiffSuggestion) {
 		super();
 		this.diffParts = diffParts;
 		this.suggestion = suggestion;
@@ -91,7 +86,7 @@ class GhostTextWidget extends WidgetType {
 			const span = document.createElement("span");
 			span.className = `cm-ghost-text cm-ghost-${part.type}`;
 
-			if (part.type === "added") {
+			if (part.type === "add") {
 				span.style.cssText = `
           color: #22863a;
           opacity: 0.7;
@@ -101,7 +96,7 @@ class GhostTextWidget extends WidgetType {
           padding: 1px 2px;
           margin-right: 1px;
         `;
-			} else if (part.type === "removed") {
+			} else if (part.type === "remove") {
 				span.style.cssText = `
           color: #d73a49;
           opacity: 0.7;
@@ -112,14 +107,28 @@ class GhostTextWidget extends WidgetType {
           margin-right: 1px;
           text-decoration: line-through;
         `;
-			} else if (part.type === "unchanged") {
+			} else if (part.type === "modify") {
+				span.style.cssText = `
+          color: #888;
+          opacity: 0.7;
+          font-style: italic;
+          background: rgba(136, 136, 136, 0.1);
+          border-radius: 2px;
+          padding: 1px 2px;
+          margin-right: 1px;
+        `;
+				span.textContent = part.insertText;
+			} else if (part.type === "none") {
+				span.style.cssText = `
+          color: #888;
+          opacity: 0.7;
+        `;
+			} else if (part.type === "cursor") {
 				span.style.cssText = `
           color: #888;
           opacity: 0.7;
         `;
 			}
-
-			span.textContent = part.text;
 			container.appendChild(span);
 		}
 
@@ -243,80 +252,80 @@ class AcceptIndicatorWidget extends WidgetType {
 
 // DECORATIONS
 
-/**
- * Extracts diff parts from a suggestion for ghost text rendering
- */
-export function extractDiffParts(
-	suggestion: Pick<DiffSuggestion, "oldText" | "newText">,
-	cursorMarker: string,
-): {
-	diffParts: DiffPart[];
-	ghostText: string;
-} {
-	const { oldText, newText } = suggestion;
+// /**
+//  * Extracts diff parts from a suggestion for ghost text rendering
+//  */
+// export function extractDiffParts(
+// 	suggestion: Pick<DiffSuggestion, "oldText" | "newText">,
+// 	cursorMarker: string,
+// ): {
+// 	diffParts: DiffPart[];
+// 	ghostText: string;
+// } {
+// 	const { oldText, newText } = suggestion;
 
-	if (!newText.includes(cursorMarker)) {
-		return { diffParts: [], ghostText: "" };
-	}
+// 	if (!newText.includes(cursorMarker)) {
+// 		return { diffParts: [], ghostText: "" };
+// 	}
 
-	// Remove cursor marker from both texts to compute the actual diff
-	const oldTextClean = oldText.replace(cursorMarker, "");
-	const newTextClean = newText.replace(cursorMarker, "");
+// 	// Remove cursor marker from both texts to compute the actual diff
+// 	const oldTextClean = oldText.replace(cursorMarker, "");
+// 	const newTextClean = newText.replace(cursorMarker, "");
 
-	// Use diff library to compute precise changes
-	const diffs = diffChars(oldTextClean, newTextClean);
+// 	// Use diff library to compute precise changes
+// 	const diffs = diffChars(oldTextClean, newTextClean);
 
-	// Find cursor positions in both old and new text
-	const oldCursorPosition = oldText.indexOf(cursorMarker);
-	const newCursorPosition = newText.indexOf(cursorMarker);
+// 	// Find cursor positions in both old and new text
+// 	const oldCursorPosition = oldText.indexOf(cursorMarker);
+// 	const newCursorPosition = newText.indexOf(cursorMarker);
 
-	// Track positions in both old and new text as we process diffs
-	let diffTextPos = 0;
+// 	// Track positions in both old and new text as we process diffs
+// 	let diffTextPos = 0;
 
-	// Extract diff parts for ghost text rendering - only changes at cursor position
-	const diffParts: DiffPart[] = [];
-	let ghostText = "";
+// 	// Extract diff parts for ghost text rendering - only changes at cursor position
+// 	const diffParts: DiffPart[] = [];
+// 	let ghostText = "";
 
-	// Add a newline to the ghost text if the last character of the last part is a newline
-	let shouldAddNewline = false;
-	for (const part of diffs) {
-		let value = part.value;
+// 	// Add a newline to the ghost text if the last character of the last part is a newline
+// 	let shouldAddNewline = false;
+// 	for (const part of diffs) {
+// 		let value = part.value;
 
-		if (shouldAddNewline) {
-			value = `\n${value}`;
-			shouldAddNewline = false;
-		}
+// 		if (shouldAddNewline) {
+// 			value = `\n${value}`;
+// 			shouldAddNewline = false;
+// 		}
 
-		if (
-			diffTextPos >= oldCursorPosition &&
-			diffTextPos + part.value.length <= newCursorPosition
-		) {
-			if (part.added) {
-				diffParts.push({ text: value, type: "added" });
-			}
-			if (part.removed) {
-				diffParts.push({ text: value, type: "removed" });
-			}
-			if (!part.added && !part.removed) {
-				diffParts.push({ text: value, type: "unchanged" });
-			}
-			ghostText += value;
-		}
-		if (value[value.length - 1] === "\n") {
-			shouldAddNewline = true;
-		}
-		diffTextPos += part.count ?? 0;
-	}
+// 		if (
+// 			diffTextPos >= oldCursorPosition &&
+// 			diffTextPos + part.value.length <= newCursorPosition
+// 		) {
+// 			if (part.added) {
+// 				diffParts.push({ text: value, type: "added" });
+// 			}
+// 			if (part.removed) {
+// 				diffParts.push({ text: value, type: "removed" });
+// 			}
+// 			if (!part.added && !part.removed) {
+// 				diffParts.push({ text: value, type: "unchanged" });
+// 			}
+// 			ghostText += value;
+// 		}
+// 		if (value[value.length - 1] === "\n") {
+// 			shouldAddNewline = true;
+// 		}
+// 		diffTextPos += part.count ?? 0;
+// 	}
 
-	return { diffParts, ghostText };
-}
+// 	return { diffParts, ghostText };
+// }
 
 /**
  * Creates decorations for a suggestion
  */
 export function createSuggestionDecorations(
 	suggestion: DiffSuggestion,
-	diffParts: DiffPart[],
+	diffParts: DiffOperation[],
 ): DecorationSet {
 	if (diffParts.length === 0) {
 		return Decoration.none;
@@ -358,21 +367,21 @@ function nextEditPredicationDecoration(suggestion: DiffSuggestion) {
 		return Decoration.none;
 	}
 
-	const { diffParts, ghostText } = extractDiffParts(suggestion, CURSOR_MARKER);
+	const { operation, ghostText } = extractDiffParts(suggestion, CURSOR_MARKER);
 
 	debug(`Computed ghost text using diff: "${ghostText}"`);
-	debug("Diff parts:", diffParts);
+	debug("Diff parts:", operation);
 
 	// Store the ghost text in the suggestion for use when accepting
 	suggestion.ghostText = ghostText;
 
 	// Only show ghost text if there's content to show
-	if (diffParts.length === 0) {
+	if (operation.type === "add") {
 		debug("No ghost text needed - no diff parts to show");
 		return Decoration.none;
 	}
 
-	return createSuggestionDecorations(suggestion, diffParts);
+	return createSuggestionDecorations(suggestion, [operation]);
 }
 
 export const suggestionConfigFacet = Facet.define<

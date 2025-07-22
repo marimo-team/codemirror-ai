@@ -1,9 +1,7 @@
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
-import {
-	createSuggestionDecorations,
-	extractDiffParts,
-} from "../next-edit-predication/extension.js";
+import type { DiffOperation } from "../next-edit-predication/diff.js";
+import { createSuggestionDecorations } from "../next-edit-predication/extension.js";
 import type { DiffSuggestion } from "../next-edit-predication/types.js";
 import { insertDiffText } from "../next-edit-predication/utils.js";
 
@@ -375,163 +373,6 @@ describe("insertDiffText", () => {
 	});
 });
 
-type Comparison = Pick<DiffSuggestion, "oldText" | "newText">;
-
-describe("extractDiffParts", () => {
-	it("should return empty arrays when no cursor marker in new text", () => {
-		const suggestion: Comparison = {
-			oldText: "hello world",
-			newText: "hello earth", // no cursor marker
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result).toEqual({
-			diffParts: [],
-			ghostText: "",
-		});
-	});
-
-	it("should handle simple text addition", () => {
-		const suggestion: Comparison = {
-			oldText: `hello ▲`,
-			newText: `hello marimo ▲`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.diffParts).toEqual([{ text: "marimo ", type: "added" }]);
-		expect(result.ghostText).toBe("marimo ");
-	});
-
-	it.fails("should handle simple text removal", () => {
-		const suggestion: Comparison = {
-			oldText: `hello marimo ▲`,
-			newText: `hello ▲`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.diffParts).toEqual([{ text: "marimo ", type: "removed" }]);
-		expect(result.ghostText).toBe("marimo ");
-	});
-
-	it.fails("should handle text replacement", () => {
-		const suggestion: Comparison = {
-			oldText: `hello old ▲`,
-			newText: `hello new ▲`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.diffParts).toEqual([
-			{ text: "old ", type: "removed" },
-			{ text: "new ", type: "added" },
-		]);
-		expect(result.ghostText).toBe("old new ");
-	});
-
-	it("should handle unchanged text", () => {
-		const suggestion: Comparison = {
-			oldText: `hello ▲ world`,
-			newText: `hello ▲ world`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.diffParts).toEqual([]);
-		expect(result.ghostText).toBe("");
-	});
-
-	it.fails("should handle cursor at beginning", () => {
-		const suggestion: Comparison = {
-			oldText: `▲world`,
-			newText: `▲hello world`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.diffParts).toEqual([{ text: "hello ", type: "added" }]);
-		expect(result.ghostText).toBe("hello ");
-	});
-
-	it("should handle cursor at end", () => {
-		const suggestion: Comparison = {
-			oldText: `hello▲`,
-			newText: `hello world▲`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.diffParts).toEqual([{ text: " world", type: "added" }]);
-		expect(result.ghostText).toBe(" world");
-	});
-
-	it.fails("should handle multiline changes", () => {
-		const suggestion: Comparison = {
-			oldText: `function test() {▲\n}`,
-			newText: `function test() {\n  console.log('hello');▲\n}`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.diffParts).toEqual([
-			{ text: "\n  console.log('hello');", type: "added" },
-		]);
-		expect(result.ghostText).toBe("\n  console.log('hello');");
-	});
-
-	it.fails("should handle complex diff with multiple changes", () => {
-		const suggestion: Comparison = {
-			oldText: `const old = ▲42;`,
-			newText: `const newVar = ▲'hello';`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.diffParts.length).toBeGreaterThan(0);
-		expect(result.ghostText).toBeTruthy();
-	});
-
-	it("should handle empty strings", () => {
-		const suggestion: Comparison = {
-			oldText: `▲`,
-			newText: `▲`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.diffParts).toEqual([]);
-		expect(result.ghostText).toBe("");
-	});
-
-	it("should handle only cursor position changes", () => {
-		const suggestion: Comparison = {
-			oldText: `hello▲ world`,
-			newText: `hello ▲world`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.diffParts.length).toBeGreaterThanOrEqual(0);
-		expect(typeof result.ghostText).toBe("string");
-	});
-
-	it("should handle special characters in diff", () => {
-		const suggestion: Comparison = {
-			oldText: `const obj = {▲};`,
-			newText: `const obj = { key: "value" ▲};`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.diffParts).toEqual([
-			{ text: ' key: "value" ', type: "added" },
-		]);
-		expect(result.ghostText).toBe(' key: "value" ');
-	});
-});
-
 describe("createSuggestionDecorations", () => {
 	it("should return empty decorations when no diff parts", () => {
 		const suggestion: DiffSuggestion = {
@@ -554,9 +395,14 @@ describe("createSuggestionDecorations", () => {
 			to: 5,
 		};
 
-		const diffParts = [{ text: " world", type: "added" as const }];
+		const diffParts: DiffOperation[] = [
+			{ type: "add", position: 5, text: " world" },
+		];
 
-		const result = createSuggestionDecorations(suggestion, diffParts);
+		const result = createSuggestionDecorations(
+			suggestion,
+			diffParts as DiffOperation[],
+		);
 
 		expect(result.size).toBe(2); // GhostTextWidget + AcceptIndicatorWidget
 	});
@@ -569,9 +415,14 @@ describe("createSuggestionDecorations", () => {
 			to: 15, // should use this position
 		};
 
-		const diffParts = [{ text: " world", type: "added" as const }];
+		const diffParts: DiffOperation[] = [
+			{ type: "add", position: 5, text: " world" },
+		];
 
-		const result = createSuggestionDecorations(suggestion, diffParts);
+		const result = createSuggestionDecorations(
+			suggestion,
+			diffParts as DiffOperation[],
+		);
 
 		// Test that decorations are created (we can't easily test the exact position without more setup)
 		expect(result.size).toBe(2);
@@ -586,8 +437,8 @@ describe("createSuggestionDecorations", () => {
 		};
 
 		const diffParts = [
-			{ text: "old ", type: "removed" as const },
-			{ text: "new ", type: "added" as const },
+			{ type: "remove", position: 0, count: 3 } as const,
+			{ type: "add", position: 0, text: "new " } as const,
 		];
 
 		const result = createSuggestionDecorations(suggestion, diffParts);
@@ -603,7 +454,7 @@ describe("createSuggestionDecorations", () => {
 			to: 11,
 		};
 
-		const diffParts = [{ text: "hello", type: "unchanged" as const }];
+		const diffParts: DiffOperation[] = [{ type: "none" }];
 
 		const result = createSuggestionDecorations(suggestion, diffParts);
 

@@ -16,12 +16,4 @@ export interface DiffSuggestion {
 	ghostText?: string; // The actual text shown as ghost text to the user
 }
 
-/**
- * Represents a piece of diff text with type information
- */
-export interface DiffPart {
-	text: string;
-	type: "added" | "removed" | "unchanged";
-}
-
 export const CURSOR_MARKER = "<|user_cursor_is_here|>";
