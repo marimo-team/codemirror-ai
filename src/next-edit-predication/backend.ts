@@ -64,7 +64,7 @@ async function fetchPrediction(opts: {
 	}
 }
 
-function cleanPrediction(prediction: string): string {
+export function cleanPrediction(prediction: string): string {
 	return prediction
 		.replace(/<\|editable_region_start\|>\n?|<\|editable_region_end\|>\n?/g, "")
 		.trim();

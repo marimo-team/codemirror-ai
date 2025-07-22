@@ -12,16 +12,17 @@ const debug = (...args: unknown[]) => {
 
 export function insertDiffText(
 	state: EditorState,
-	newText: string,
-	suggestion?: DiffSuggestion,
+	suggestion: Pick<DiffSuggestion, "newText" | "to" | "ghostText">,
+	cursorMarker: string = CURSOR_MARKER,
 ): TransactionSpec {
-	const cursorMarkerWithNewline = `${CURSOR_MARKER}\n`;
+	const { newText, to, ghostText } = suggestion;
+	const cursorMarkerWithNewline = `${cursorMarker}\n`;
 
-	if (!suggestion?.ghostText || !newText.includes(CURSOR_MARKER)) {
+	if (!ghostText || !newText.includes(cursorMarker)) {
 		// Fallback to original behavior
 		const cleanText = newText
 			.replace(cursorMarkerWithNewline, "")
-			.replace(CURSOR_MARKER, "")
+			.replace(cursorMarker, "")
 			.trim();
 		return {
 			changes: { from: 0, to: state.doc.length, insert: cleanText },
@@ -31,8 +32,8 @@ export function insertDiffText(
 	}
 
 	// Insert the ghost text at the current cursor position
-	const insertText = suggestion.ghostText;
-	const insertPosition = suggestion.to;
+	const insertText = ghostText;
+	const insertPosition = to;
 
 	// Calculate final cursor position relative to where we're inserting
 	const finalCursorPosition = insertPosition + insertText.length;

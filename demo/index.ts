@@ -72,7 +72,7 @@ ${"\n".repeat(4)}`;
 			python(),
 			nextEditPrediction({
 				fetchFn: PredicationBackend.oxen({
-					model: "oxen:ox-wonderful-pink-swordtail",
+					model: "oxen:ox-cold-olive-fox",
 					baseUrl: "https://hub.oxen.ai/api/chat",
 					headers: {
 						Authorization: `Bearer ${import.meta.env.VITE_API_KEY}`,

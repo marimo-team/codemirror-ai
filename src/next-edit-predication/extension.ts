@@ -142,7 +142,7 @@ class GhostTextWidget extends WidgetType {
 		}
 
 		view.dispatch({
-			...insertDiffText(view.state, suggestion.newText, suggestion),
+			...insertDiffText(view.state, suggestion),
 		});
 		return true;
 	}
@@ -221,7 +221,7 @@ class AcceptIndicatorWidget extends WidgetType {
 		}
 
 		view.dispatch({
-			...insertDiffText(view.state, suggestion.newText, suggestion),
+			...insertDiffText(view.state, suggestion),
 		});
 		return true;
 	}
@@ -502,7 +502,7 @@ const acceptSuggestion: Command = (view: EditorView) => {
 	}
 
 	view.dispatch({
-		...insertDiffText(view.state, suggestion.newText, suggestion),
+		...insertDiffText(view.state, suggestion),
 	});
 	return true;
 };
