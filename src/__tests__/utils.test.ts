@@ -443,7 +443,7 @@ describe("createSuggestionDecorations", () => {
 
 		const result = createSuggestionDecorations(suggestion, diffParts);
 
-		expect(result.size).toBe(2); // Still creates 2 widgets regardless of diff part count
+		expect(result.size).toBe(3);
 	});
 
 	it("should handle unchanged diff parts", () => {
@@ -458,6 +458,6 @@ describe("createSuggestionDecorations", () => {
 
 		const result = createSuggestionDecorations(suggestion, diffParts);
 
-		expect(result.size).toBe(2);
+		expect(result.size).toBe(1);
 	});
 });

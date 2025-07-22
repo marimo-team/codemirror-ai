@@ -68,7 +68,6 @@ describe("extractDiffParts", () => {
 			expect(result.operation.removeCount).toBe(3);
 			expect(result.operation.position).toBe(7);
 		}
-		expect(result.ghostText).toBe('new_value")');
 	});
 
 	it("should handle unchanged text", () => {
@@ -584,8 +583,7 @@ describe("findLargestDiffBound", () => {
 			.filter((d) => d.added)
 			.map((d) => d.value)
 			.join("");
-		expect(added).toContain("multiplier=2");
-		expect(added).toContain("* multiplier");
+		expect(added).toEqual("multiplier=2):\n    result = x * multiplier");
 	});
 
 	it("should handle indentation changes", () => {

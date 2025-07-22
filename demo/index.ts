@@ -1,8 +1,21 @@
 import { python } from "@codemirror/lang-python";
-import { tooltips } from "@codemirror/view";
+import type { Range } from "@codemirror/state";
+import {
+	Decoration,
+	type DecorationSet,
+	tooltips,
+	ViewPlugin,
+} from "@codemirror/view";
 import { basicSetup, EditorView } from "codemirror";
 import { aiExtension } from "../src/inline-edit.js";
 import { PredicationBackend } from "../src/next-edit-predication/backend.js";
+import {
+	AcceptIndicatorWidget,
+	createModifyDecoration,
+	createRemovalDecoration,
+	GhostTextWidget,
+} from "../src/next-edit-predication/decorations.js";
+import type { DiffOperation } from "../src/next-edit-predication/diff.js";
 import { nextEditPrediction } from "../src/next-edit-predication/extension.js";
 
 const logger = console;
@@ -35,6 +48,110 @@ def quick_sort(arr: list) -> list:
 
 quick_sort([1, 2, 3, 4, 5])
 ${"\n".repeat(4)}`;
+
+const decorationsDoc = `def calculate_sum(a, b):
+    # This function will sum two numbers
+    return a + b
+
+def process_data(items):
+    # Process each item in the list
+    return [item * 2 for item in items]
+
+def square(a):
+    result = a * 2
+    return result
+double(a)
+
+# Example usage
+result = calculate_sum(10, 20)
+processed = process_data([1, 2, 3, 4, 5])`;
+
+// Create decorations showcase plugin
+const decorationsPlugin = ViewPlugin.fromClass(
+	class {
+		decorations: DecorationSet;
+
+		constructor(view: EditorView) {
+			this.decorations = this.buildDecorations(view);
+		}
+
+		buildDecorations(view: EditorView) {
+			const widgets: Range<Decoration>[] = [];
+			const _doc = view.state.doc;
+			const endOf = (match: string) =>
+				view.state.doc.toString().indexOf(match) + match.length;
+			const startOf = (match: string) =>
+				view.state.doc.toString().indexOf(match);
+
+			const ghostPos = endOf("sum two numbers");
+			const deletePos = startOf("process_data");
+			const deleteCount = 8; // "process_"
+			const modifyPos = startOf("calculate_sum");
+			const modifyCount = 13; // "calculate_sum"
+
+			const operations: DiffOperation[] = [
+				{ type: "add", text: " efficiently", position: ghostPos },
+				{ type: "remove", position: deletePos, count: deleteCount },
+				{
+					type: "modify",
+					position: modifyPos,
+					insertText: "compute_total",
+					removeCount: modifyCount,
+				},
+				{
+					type: "modify",
+					position: endOf("result = a * "),
+					insertText: "a\n    return result\nsquare",
+					removeCount: "2\n    return result\ndouble".length,
+				},
+			];
+
+			const onAccept = () => console.log("Operation accepted") ?? true;
+			const _onReject = () => console.log("Operation rejected") ?? true;
+
+			for (const operation of operations) {
+				if (operation.type === "add") {
+					const ghostWidget = new GhostTextWidget(operation, onAccept);
+					widgets.push(
+						Decoration.widget({ widget: ghostWidget, side: 1 }).range(
+							operation.position,
+						),
+					);
+				}
+				if (operation.type === "remove") {
+					widgets.push(...createRemovalDecoration(operation, onAccept));
+				}
+				if (operation.type === "modify") {
+					widgets.push(...createModifyDecoration(operation, onAccept));
+				}
+				// if (operation.type === "cursor") {
+				// 	const ghostWidget = new CurosTextWidget(operation, () => console.log("Ghost text accepted") ?? true);
+				// 	widgets.push(Decoration.widget({ widget: ghostWidget, side: 1 }).range(operation.position));
+				// }
+				// if (operation.type === "none") {
+				// }
+			}
+
+			// Accept indicator at the end
+			const endPos = view.state.doc.length;
+			const acceptIndicator = new AcceptIndicatorWidget(
+				() => console.log("Accepted all changes") ?? true,
+				() => console.log("Rejected all changes") ?? true,
+			);
+			widgets.push(
+				Decoration.widget({ widget: acceptIndicator, side: 1 }).range(endPos),
+			);
+
+			// sort by from position
+			widgets.sort((a, b) => a.from - b.from);
+
+			return Decoration.set(widgets);
+		}
+	},
+	{
+		decorations: (v) => v.decorations,
+	},
+);
 
 (async () => {
 	const extensions = [
@@ -85,5 +202,12 @@ ${"\n".repeat(4)}`;
 			document.querySelector("#next-edit-predication-editor") ?? undefined,
 	});
 
-	return { editor, nextEditPredicationEditor };
+	// Decorations showcase
+	const decorationsEditor = new EditorView({
+		doc: decorationsDoc,
+		extensions: [basicSetup, python(), decorationsPlugin],
+		parent: document.querySelector("#decorations-demo") ?? undefined,
+	});
+
+	return { editor, nextEditPredicationEditor, decorationsEditor };
 })();

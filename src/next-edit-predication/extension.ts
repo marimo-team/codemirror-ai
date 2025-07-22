@@ -1,6 +1,6 @@
 import {
-	Facet,
 	Prec,
+	type Range,
 	StateEffect,
 	StateField,
 	type Text,
@@ -13,11 +13,17 @@ import {
 	keymap,
 	ViewPlugin,
 	type ViewUpdate,
-	WidgetType,
 } from "@codemirror/view";
 import { debouncePromise } from "../utils.js";
 import { debug } from "./debug.js";
+import {
+	AcceptIndicatorWidget,
+	createModifyDecoration,
+	createRemovalDecoration,
+	GhostTextWidget,
+} from "./decorations.js";
 import { type DiffOperation, extractDiffParts } from "./diff.js";
+import { suggestionConfigFacet } from "./state.js";
 import {
 	CURSOR_MARKER,
 	type DiffSuggestion,
@@ -59,196 +65,6 @@ const NextEditPredictionEffect = StateEffect.define<{
 	suggestion: DiffSuggestion | null;
 	doc: Text;
 }>();
-
-/**
- * Widget for displaying ghost text inline with diff information
- */
-class GhostTextWidget extends WidgetType {
-	diffParts: DiffOperation[];
-	suggestion: DiffSuggestion;
-
-	constructor(diffParts: DiffOperation[], suggestion: DiffSuggestion) {
-		super();
-		this.diffParts = diffParts;
-		this.suggestion = suggestion;
-	}
-
-	toDOM(view: EditorView) {
-		const container = document.createElement("span");
-		container.className = "cm-ghost-text-container";
-		container.style.cssText = `
-      cursor: pointer;
-      display: inline;
-    `;
-
-		// Create spans for each diff part
-		for (const part of this.diffParts) {
-			const span = document.createElement("span");
-			span.className = `cm-ghost-text cm-ghost-${part.type}`;
-
-			if (part.type === "add") {
-				span.style.cssText = `
-          color: #22863a;
-          opacity: 0.7;
-          font-style: italic;
-          background: rgba(34, 134, 58, 0.1);
-          border-radius: 2px;
-          padding: 1px 2px;
-          margin-right: 1px;
-        `;
-			} else if (part.type === "remove") {
-				span.style.cssText = `
-          color: #d73a49;
-          opacity: 0.7;
-          font-style: italic;
-          background: rgba(215, 58, 73, 0.1);
-          border-radius: 2px;
-          padding: 1px 2px;
-          margin-right: 1px;
-          text-decoration: line-through;
-        `;
-			} else if (part.type === "modify") {
-				span.style.cssText = `
-          color: #888;
-          opacity: 0.7;
-          font-style: italic;
-          background: rgba(136, 136, 136, 0.1);
-          border-radius: 2px;
-          padding: 1px 2px;
-          margin-right: 1px;
-        `;
-				span.textContent = part.insertText;
-			} else if (part.type === "none") {
-				span.style.cssText = `
-          color: #888;
-          opacity: 0.7;
-        `;
-			} else if (part.type === "cursor") {
-				span.style.cssText = `
-          color: #888;
-          opacity: 0.7;
-        `;
-			}
-			container.appendChild(span);
-		}
-
-		container.onclick = (e) => this.accept(e, view);
-		return container;
-	}
-
-	accept(e: MouseEvent, view: EditorView) {
-		const config = view.state.facet(suggestionConfigFacet);
-		if (!config.acceptOnClick) return;
-
-		e.stopPropagation();
-		e.preventDefault();
-
-		const suggestion = view.state.field(NextEditPredictionState)?.suggestion;
-
-		// If there is no suggestion, do nothing and let the default keymap handle it
-		if (!suggestion) {
-			return false;
-		}
-
-		view.dispatch({
-			...insertDiffText(view.state, suggestion),
-		});
-		return true;
-	}
-}
-
-/**
- * Small widget to indicate that a suggestion can be accepted
- */
-class AcceptIndicatorWidget extends WidgetType {
-	suggestion: DiffSuggestion;
-
-	constructor(suggestion: DiffSuggestion) {
-		super();
-		this.suggestion = suggestion;
-	}
-
-	toDOM(view: EditorView) {
-		debug("AcceptIndicatorWidget.toDOM called");
-		const container = document.createElement("div");
-		container.style.cssText = `
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-    `;
-
-		// Accept button
-		const acceptSpan = document.createElement("span");
-		acceptSpan.className = "cm-accept-indicator";
-		acceptSpan.style.cssText = `
-      color: #007acc;
-      opacity: 0.8;
-      font-size: 0.8em;
-      cursor: pointer;
-      padding: 1px 4px;
-      background: rgba(0, 122, 204, 0.1);
-      border-radius: 3px;
-      border: 1px solid rgba(0, 122, 204, 0.3);
-      margin-left: 8px;
-    `;
-		acceptSpan.textContent = "💡 Accept [Tab]";
-		acceptSpan.onclick = (e) => this.accept(e, view);
-		container.appendChild(acceptSpan);
-
-		// Reject button
-		const rejectSpan = document.createElement("span");
-		rejectSpan.className = "cm-reject-indicator";
-		rejectSpan.style.cssText = `
-      color: #d73a49;
-      opacity: 0.8;
-      font-size: 0.8em;
-      cursor: pointer;
-      padding: 1px 4px;
-      background: rgba(215, 58, 73, 0.1);
-      border-radius: 3px;
-      border: 1px solid rgba(215, 58, 73, 0.3);
-    `;
-		rejectSpan.textContent = "❌ Reject [Esc]";
-		rejectSpan.onclick = (e) => this.reject(e, view);
-		container.appendChild(rejectSpan);
-
-		return container;
-	}
-
-	accept(e: MouseEvent, view: EditorView) {
-		const config = view.state.facet(suggestionConfigFacet);
-		if (!config.acceptOnClick) return;
-
-		e.stopPropagation();
-		e.preventDefault();
-
-		const suggestion = view.state.field(NextEditPredictionState)?.suggestion;
-
-		// If there is no suggestion, do nothing and let the default keymap handle it
-		if (!suggestion) {
-			return false;
-		}
-
-		view.dispatch({
-			...insertDiffText(view.state, suggestion),
-		});
-		return true;
-	}
-
-	reject(e: MouseEvent, view: EditorView) {
-		e.stopPropagation();
-		e.preventDefault();
-
-		// Clear the suggestion
-		view.dispatch({
-			effects: NextEditPredictionEffect.of({
-				suggestion: null,
-				doc: view.state.doc,
-			}),
-		});
-		return true;
-	}
-}
 
 // DECORATIONS
 
@@ -325,26 +141,42 @@ class AcceptIndicatorWidget extends WidgetType {
  */
 export function createSuggestionDecorations(
 	suggestion: DiffSuggestion,
-	diffParts: DiffOperation[],
+	operations: DiffOperation[],
 ): DecorationSet {
-	if (diffParts.length === 0) {
+	if (operations.length === 0) {
 		return Decoration.none;
 	}
 
 	// Position ghost text at the current cursor position
 	const ghostStartPos = suggestion.to;
+	const decorations: Range<Decoration>[] = [];
 
-	const decorations = [
+	for (const part of operations) {
+		if (part.type === "add") {
+			decorations.push(
+				Decoration.widget({
+					widget: new GhostTextWidget(part, acceptSuggestion),
+					side: 1, // 1 means after the position
+				}).range(ghostStartPos),
+			);
+		}
+		if (part.type === "remove") {
+			decorations.push(...createRemovalDecoration(part, acceptSuggestion));
+		}
+		if (part.type === "modify") {
+			decorations.push(...createModifyDecoration(part, acceptSuggestion));
+		}
+	}
+
+	decorations.push(
 		Decoration.widget({
-			widget: new GhostTextWidget(diffParts, suggestion),
+			widget: new AcceptIndicatorWidget(acceptSuggestion, rejectSuggestion),
 			side: 1, // 1 means after the position
 		}).range(ghostStartPos),
+	);
 
-		Decoration.widget({
-			widget: new AcceptIndicatorWidget(suggestion),
-			side: 1, // 1 means after the position
-		}).range(ghostStartPos),
-	];
+	// Sort by from position
+	decorations.sort((a, b) => a.from - b.from);
 
 	return Decoration.set(decorations);
 }
@@ -383,39 +215,6 @@ function nextEditPredicationDecoration(suggestion: DiffSuggestion) {
 
 	return createSuggestionDecorations(suggestion, [operation]);
 }
-
-export const suggestionConfigFacet = Facet.define<
-	{
-		acceptOnClick: boolean;
-		fetchFn: NextEditPredictor;
-		onEdit?: (
-			oldDoc: string,
-			newDoc: string,
-			from: number,
-			to: number,
-			insert: string,
-		) => void;
-	},
-	{
-		acceptOnClick: boolean;
-		fetchFn: NextEditPredictor | undefined;
-		onEdit?: (
-			oldDoc: string,
-			newDoc: string,
-			from: number,
-			to: number,
-			insert: string,
-		) => void;
-	}
->({
-	combine(value) {
-		return {
-			acceptOnClick: !!value.at(-1)?.acceptOnClick,
-			fetchFn: value.at(-1)?.fetchFn,
-			onEdit: value.at(-1)?.onEdit,
-		};
-	},
-});
 
 // PLUGINS
 
