@@ -24,8 +24,9 @@ async function fetchPrediction(opts: {
 	model: string;
 	url: string;
 	headers?: Record<string, string>;
+	signal?: AbortSignal;
 }): Promise<{ prediction: string; prompt: string }> {
-	const { message, model, url, headers } = opts;
+	const { message, model, url, headers, signal } = opts;
 	const completionsUrl = `${url}/completions`;
 	const response = await fetch(completionsUrl, {
 		method: "POST",
@@ -42,6 +43,7 @@ async function fetchPrediction(opts: {
 				},
 			],
 		}),
+		signal,
 	});
 
 	if (!response.ok) {
@@ -50,6 +52,9 @@ async function fetchPrediction(opts: {
 
 	try {
 		const data = await response.json();
+		if (!data.output || !data.output.content || !data.output.content[0]) {
+			throw new Error("Invalid response from server");
+		}
 		return {
 			prediction: data.output.content[0].text,
 			prompt: message,
@@ -87,7 +92,17 @@ const oxen = (opts: PredicationBackendOptions): NextEditPredictor => {
 		templater = defaultTemplate,
 	} = opts;
 
+	let currentController: AbortController | null = null;
+
 	return async (state: EditorState): Promise<DiffSuggestion> => {
+		// Cancel any existing prediction
+		if (currentController) {
+			currentController.abort();
+		}
+
+		// Create new controller for this prediction
+		currentController = new AbortController();
+
 		const { from, to } = state.selection.main;
 		const text = state.doc.toString();
 		const prefix = text.slice(0, to);
@@ -106,6 +121,7 @@ const oxen = (opts: PredicationBackendOptions): NextEditPredictor => {
 				model,
 				url: baseUrl,
 				headers,
+				signal: currentController.signal,
 			});
 
 			// Call the prediction callback if provided
@@ -124,8 +140,13 @@ const oxen = (opts: PredicationBackendOptions): NextEditPredictor => {
 				to: to,
 			};
 		} catch (error) {
-			// biome-ignore lint/suspicious/noConsole: error
-			console.error("Error fetching prediction:", error);
+			const shouldLog = error instanceof Error && error.name !== "AbortError";
+
+			if (shouldLog) {
+				// biome-ignore lint/suspicious/noConsole: error
+				console.error("Error fetching prediction:", error);
+			}
+
 			// Return empty suggestion on error
 			return {
 				oldText: text,
