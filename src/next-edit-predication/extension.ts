@@ -22,7 +22,7 @@ import {
 	createRemovalDecoration,
 	GhostTextWidget,
 } from "./decorations.js";
-import { type DiffOperation, extractDiffParts } from "./diff.js";
+import { type DiffOperation, extractDiffOperation } from "./diff.js";
 import { suggestionConfigFacet } from "./state.js";
 import {
 	CURSOR_MARKER,
@@ -72,40 +72,45 @@ const NextEditPredictionEffect = StateEffect.define<{
  * Creates decorations for a suggestion
  */
 export function createSuggestionDecorations(
-	suggestion: DiffSuggestion,
-	operations: DiffOperation[],
+	operation: DiffOperation,
 ): DecorationSet {
-	if (operations.length === 0) {
+	if (operation.type === "none") {
 		return Decoration.none;
 	}
 
 	// Position ghost text at the current cursor position
-	const ghostStartPos = suggestion.to;
 	const decorations: Range<Decoration>[] = [];
 
-	for (const part of operations) {
-		if (part.type === "add") {
-			decorations.push(
-				Decoration.widget({
-					widget: new GhostTextWidget(part, acceptSuggestion),
-					side: 1, // 1 means after the position
-				}).range(ghostStartPos),
-			);
-		}
-		if (part.type === "remove") {
-			decorations.push(...createRemovalDecoration(part, acceptSuggestion));
-		}
-		if (part.type === "modify") {
-			decorations.push(...createModifyDecoration(part, acceptSuggestion));
-		}
+	if (operation.type === "add") {
+		const startPos = operation.position;
+		decorations.push(
+			Decoration.widget({
+				widget: new GhostTextWidget(operation, acceptSuggestion),
+				side: 1, // 1 means after the position
+			}).range(startPos),
+		);
+		decorations.push(
+			Decoration.widget({
+				widget: new AcceptIndicatorWidget(acceptSuggestion, rejectSuggestion),
+				side: 1, // 1 means after the position
+			}).range(startPos),
+		);
 	}
-
-	decorations.push(
-		Decoration.widget({
-			widget: new AcceptIndicatorWidget(acceptSuggestion, rejectSuggestion),
-			side: 1, // 1 means after the position
-		}).range(ghostStartPos),
-	);
+	if (operation.type === "remove") {
+		decorations.push(...createRemovalDecoration(operation, acceptSuggestion));
+	}
+	if (operation.type === "modify") {
+		decorations.push(...createModifyDecoration(operation, acceptSuggestion));
+	}
+	if (operation.type === "cursor") {
+		// For cursor operations, show an indicator at the cursor position
+		decorations.push(
+			Decoration.widget({
+				widget: new AcceptIndicatorWidget(acceptSuggestion, rejectSuggestion),
+				side: 1, // 1 means after the position
+			}).range(operation.position),
+		);
+	}
 
 	// Sort by from position
 	decorations.sort((a, b) => a.from - b.from);
@@ -119,25 +124,19 @@ export function createSuggestionDecorations(
  * where changes occur in the document.
  */
 function nextEditPredicationDecoration(suggestion: DiffSuggestion) {
-	debug("====oldText====");
+	debug("====old text====");
 	debug(suggestion.oldText);
-	debug("====end oldText====");
-	debug("====newText====");
+	debug("====new text====");
 	debug(suggestion.newText);
-	debug("====end newText====");
 
 	if (!suggestion.newText.includes(CURSOR_MARKER)) {
 		debug("No cursor marker found, skipping ghost text");
 		return Decoration.none;
 	}
 
-	const { operation, ghostText } = extractDiffParts(suggestion, CURSOR_MARKER);
+	const { operation } = extractDiffOperation(suggestion, CURSOR_MARKER);
 
-	debug(`Computed ghost text using diff: "${ghostText}"`);
-	debug("Diff parts:", operation);
-
-	// Store the ghost text in the suggestion for use when accepting
-	suggestion.ghostText = ghostText;
+	debug("diff:", operation);
 
 	// Only show ghost text if there's content to show
 	if (operation.type === "add") {
@@ -145,7 +144,7 @@ function nextEditPredicationDecoration(suggestion: DiffSuggestion) {
 		return Decoration.none;
 	}
 
-	return createSuggestionDecorations(suggestion, [operation]);
+	return createSuggestionDecorations(operation);
 }
 
 // PLUGINS
@@ -241,8 +240,12 @@ const acceptSuggestion: Command = (view: EditorView) => {
 		return false;
 	}
 
+	const { operation, cursorPosition } = extractDiffOperation(
+		suggestion,
+		CURSOR_MARKER,
+	);
 	view.dispatch({
-		...insertDiffText(view.state, suggestion),
+		...insertDiffText({ state: view.state, operation, cursorPosition }),
 	});
 	return true;
 };

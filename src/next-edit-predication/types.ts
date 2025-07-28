@@ -13,7 +13,6 @@ export interface DiffSuggestion {
 	newText: string;
 	from: number;
 	to: number;
-	ghostText?: string; // The actual text shown as ghost text to the user
 }
 
 export const CURSOR_MARKER = "<|user_cursor_is_here|>";

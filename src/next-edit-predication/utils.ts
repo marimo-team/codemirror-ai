@@ -3,47 +3,61 @@ import {
 	type EditorState,
 	type TransactionSpec,
 } from "@codemirror/state";
-import { CURSOR_MARKER, type DiffSuggestion } from "./types.js";
+import type { DiffOperation } from "./diff.js";
 
-const debug = (...args: unknown[]) => {
-	// biome-ignore lint/suspicious/noConsole: debug
-	console.debug(...args);
-};
+export function insertDiffText(opts: {
+	state: EditorState;
+	operation: DiffOperation;
+	cursorPosition: number | null;
+}): TransactionSpec {
+	const { state, operation, cursorPosition } = opts;
 
-export function insertDiffText(
-	state: EditorState,
-	suggestion: Pick<DiffSuggestion, "newText" | "to" | "ghostText">,
-	cursorMarker: string = CURSOR_MARKER,
-): TransactionSpec {
-	const { newText, to, ghostText } = suggestion;
-	const cursorMarkerWithNewline = `${cursorMarker}\n`;
+	switch (operation.type) {
+		case "add": {
+			const insertPosition = operation.position;
+			const finalCursorPosition = insertPosition + operation.text.length;
+			return {
+				changes: { from: insertPosition, to: insertPosition, insert: operation.text },
+				selection: EditorSelection.cursor(finalCursorPosition),
+				userEvent: "input.complete",
+			};
+		}
 
-	if (!ghostText || !newText.includes(cursorMarker)) {
-		// Fallback to original behavior
-		const cleanText = newText
-			.replace(cursorMarkerWithNewline, "")
-			.replace(cursorMarker, "")
-			.trim();
-		return {
-			changes: { from: 0, to: state.doc.length, insert: cleanText },
-			selection: EditorSelection.cursor(cleanText.length),
-			userEvent: "input.complete",
-		};
+		case "remove": {
+			const finalCursorPosition = operation.position;
+			return {
+				changes: { from: operation.position, to: operation.position + operation.count, insert: "" },
+				selection: EditorSelection.cursor(finalCursorPosition),
+				userEvent: "input.complete",
+			};
+		}
+
+		case "modify": {
+			const finalCursorPosition = operation.position + operation.insertText.length;
+			return {
+				changes: { 
+					from: operation.position, 
+					to: operation.position + operation.removeCount, 
+					insert: operation.insertText 
+				},
+				selection: EditorSelection.cursor(finalCursorPosition),
+				userEvent: "input.complete",
+			};
+		}
+
+		case "cursor": {
+			// For cursor operations, just move the cursor without changing text
+			return {
+				selection: EditorSelection.cursor(operation.position),
+				userEvent: "select",
+			};
+		}
+
+		case "none": {
+			// No operation - return current state
+			return {
+				selection: cursorPosition !== null ? EditorSelection.cursor(cursorPosition) : state.selection,
+			};
+		}
 	}
-
-	// Insert the ghost text at the current cursor position
-	const insertText = ghostText;
-	const insertPosition = to;
-
-	// Calculate final cursor position relative to where we're inserting
-	const finalCursorPosition = insertPosition + insertText.length;
-
-	debug(`Insert text: "${insertText}"`);
-	debug(`Final cursor position: ${finalCursorPosition}`);
-
-	return {
-		changes: { from: insertPosition, to: insertPosition, insert: insertText },
-		selection: EditorSelection.cursor(finalCursorPosition),
-		userEvent: "input.complete",
-	};
 }

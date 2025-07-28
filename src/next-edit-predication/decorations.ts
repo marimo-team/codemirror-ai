@@ -364,6 +364,9 @@ function createContextualDiffLine(
 export class ModifyWidget extends WidgetType {
 	operation: DiffOperationOf<"modify">;
 	onAccept: Command;
+	tooltip?: HTMLDivElement;
+	scrollElement?: Element;
+	scrollHandler?: () => void;
 
 	constructor(operation: DiffOperationOf<"modify">, onAccept: Command) {
 		super();
@@ -380,11 +383,6 @@ export class ModifyWidget extends WidgetType {
 			width: 0;
 			height: 0;
 		`;
-
-		const _textToRemove = view.state.doc.sliceString(
-			this.operation.position,
-			this.operation.position + this.operation.removeCount,
-		);
 
 		// Use the container as reference for tooltip positioning
 		const referenceElement = container;
@@ -437,7 +435,7 @@ export class ModifyWidget extends WidgetType {
 			// Find the line containing the modification
 			const line = view.state.doc.lineAt(this.operation.position);
 			const lineEnd = line.to;
-			
+
 			// Get the coordinates for the end of the line
 			const lineEndPos = view.coordsAtPos(lineEnd);
 			const tooltipRect = tooltip.getBoundingClientRect();
@@ -445,7 +443,9 @@ export class ModifyWidget extends WidgetType {
 			if (lineEndPos) {
 				// Position to the right of the end of the line
 				const left = lineEndPos.right + TOOLTIP_OFFSET_RIGHT;
-				const top = lineEndPos.top + (lineEndPos.bottom - lineEndPos.top - tooltipRect.height) / 2;
+				const top =
+					lineEndPos.top +
+					(lineEndPos.bottom - lineEndPos.top - tooltipRect.height) / 2;
 
 				// Keep tooltip within viewport bounds
 				const maxLeft = window.innerWidth - tooltipRect.width - 8;
@@ -490,17 +490,10 @@ export class ModifyWidget extends WidgetType {
 		// Also listen for window scroll in case editor is in a scrollable container
 		window.addEventListener("scroll", scrollHandler, { passive: true });
 
-		// Clean up tooltip and event listeners when widget is removed
-		container.addEventListener("DOMNodeRemoved", () => {
-			// Remove event listeners
-			scrollElement.removeEventListener("scroll", scrollHandler);
-			window.removeEventListener("scroll", scrollHandler);
-
-			// Remove tooltip from DOM
-			if (tooltip.parentNode) {
-				tooltip.parentNode.removeChild(tooltip);
-			}
-		});
+		// Store references for cleanup in destroy()
+		this.tooltip = tooltip;
+		this.scrollElement = scrollElement;
+		this.scrollHandler = scrollHandler;
 
 		container.onclick = (e) => this.accept(e, view);
 		return container;
@@ -514,6 +507,21 @@ export class ModifyWidget extends WidgetType {
 		e.preventDefault();
 
 		return this.onAccept(view);
+	}
+
+	destroy() {
+		debug("ModifyWidget.destroy called");
+
+		// Remove event listeners
+		if (this.scrollElement && this.scrollHandler) {
+			this.scrollElement.removeEventListener("scroll", this.scrollHandler);
+			window.removeEventListener("scroll", this.scrollHandler);
+		}
+
+		// Remove tooltip from DOM
+		if (this.tooltip && this.tooltip.parentNode) {
+			this.tooltip.parentNode.removeChild(this.tooltip);
+		}
 	}
 }
 

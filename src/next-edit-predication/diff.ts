@@ -33,15 +33,13 @@ export interface DiffText {
 
 export interface DiffResult {
 	operation: DiffOperation;
-	ghostText: string;
+	cursorPosition: number | null;
 }
 
 /**
  * Finds the bounds that encompass all diff changes
  */
-export function findLargestDiffBound(
-	diffs: Change[],
-): {
+export function findLargestDiffBound(diffs: Change[]): {
 	startIdx: number;
 	endIdx: number;
 	oldStart: number;
@@ -81,7 +79,7 @@ export function findLargestDiffBound(
 /**
  * Extracts the largest diff operation at the cursor position
  */
-export function extractDiffParts(
+export function extractDiffOperation(
 	suggestion: Pick<DiffText, "oldText" | "newText">,
 	cursorMarker: string,
 ): DiffResult {
@@ -91,7 +89,7 @@ export function extractDiffParts(
 		debug("No cursor marker found, skipping ghost text");
 		return {
 			operation: { type: "none" },
-			ghostText: "",
+			cursorPosition: null,
 		};
 	}
 
@@ -132,19 +130,19 @@ export function extractDiffParts(
 			if (oldCursorPosition !== newCursorPosition) {
 				return {
 					operation: { type: "cursor", position: newCursorPosition },
-					ghostText: "",
+					cursorPosition: newCursorPosition,
 				};
 			} else {
 				return {
 					operation: { type: "none" },
-					ghostText: "",
+					cursorPosition: null,
 				};
 			}
 		} else {
 			// This shouldn't happen if texts differ but no diffs found
 			return {
 				operation: { type: "none" },
-				ghostText: "",
+				cursorPosition: null,
 			};
 		}
 	}
@@ -172,40 +170,26 @@ export function extractDiffParts(
 			// Cursor position changed but no text changes
 			return {
 				operation: { type: "cursor", position: newCursorPosition },
-				ghostText: "",
+				cursorPosition: newCursorPosition,
 			};
 		} else {
 			// No changes at all
 			return {
 				operation: { type: "none" },
-				ghostText: "",
+				cursorPosition: null,
 			};
 		}
 	}
 
 	// Calculate ghost text - text that appears after cursor in the result
-	let ghostText = "";
-	
+
 	// Calculate the position where the new text will appear after applying changes
 	let currentNewPos = bound.newStart;
 	let foundCursor = false;
 
-	debug("=== GHOST TEXT DEBUG ===");
-	debug("bound.newStart:", bound.newStart);
-	debug("newCursorPosition:", newCursorPosition);
-	debug("Processing diffs from", bound.startIdx, "to", bound.endIdx);
-
 	for (let i = bound.startIdx; i <= bound.endIdx; i++) {
 		const diff = diffs[i];
 		if (diff === undefined) continue;
-
-		debug(`diff[${i}]:`, {
-			value: JSON.stringify(diff.value),
-			added: diff.added,
-			removed: diff.removed,
-			currentNewPos,
-			foundCursor,
-		});
 
 		if (diff.added || !diff.removed) {
 			// This text will appear in the new version
@@ -218,33 +202,17 @@ export function extractDiffParts(
 					newCursorPosition <= currentNewPos + textToShow.length
 				) {
 					// Cursor is within this text - add the portion after the cursor
-					const offsetInText = newCursorPosition - currentNewPos;
-					const afterCursor = textToShow.substring(offsetInText);
-					debug(
-						`  Cursor within text - offset: ${offsetInText}, afterCursor: ${JSON.stringify(afterCursor)}`,
-					);
-					ghostText += afterCursor;
 					foundCursor = true;
 				} else if (currentNewPos > newCursorPosition) {
 					// Cursor is before this text - add all of it
-					debug(
-						`  Cursor before text - adding all: ${JSON.stringify(textToShow)}`,
-					);
-					ghostText += textToShow;
 					foundCursor = true;
 				}
 				currentNewPos += textToShow.length;
 			} else {
 				// Already found cursor - add all remaining text
-				debug(`  Already found cursor - adding: ${JSON.stringify(textToShow)}`);
-				ghostText += textToShow;
 			}
 		}
-		debug(`  ghostText so far: ${JSON.stringify(ghostText)}`);
 	}
-
-	debug("Final ghostText:", JSON.stringify(ghostText));
-	debug("========================");
 
 	// Determine the operation type
 	let operation: DiffOperation;
@@ -257,7 +225,6 @@ export function extractDiffParts(
 			text: addedText,
 		};
 		// For pure additions, ghost text is the added text
-		ghostText = addedText;
 	} else if (!addedText && removedText) {
 		// Pure removal
 		operation = {
@@ -265,7 +232,6 @@ export function extractDiffParts(
 			position: bound.oldStart,
 			count: removedText.length,
 		};
-		ghostText = ""; // Nothing to show for pure removal
 	} else {
 		// Modification (both add and remove)
 		operation = {
@@ -276,41 +242,5 @@ export function extractDiffParts(
 		};
 	}
 
-	return { operation, ghostText };
-}
-
-/**
- * Helper function to apply a diff operation to text
- */
-export function applyDiffOperation(
-	text: string,
-	operation: DiffOperation,
-): string {
-	switch (operation.type) {
-		case "add":
-			return (
-				text.slice(0, operation.position) +
-				operation.text +
-				text.slice(operation.position)
-			);
-
-		case "remove":
-			return (
-				text.slice(0, operation.position) +
-				text.slice(operation.position + operation.count)
-			);
-
-		case "modify":
-			return (
-				text.slice(0, operation.position) +
-				operation.insertText +
-				text.slice(operation.position + operation.removeCount)
-			);
-
-		case "cursor":
-			return text;
-
-		case "none":
-			return text;
-	}
+	return { operation, cursorPosition: newCursorPosition };
 }
