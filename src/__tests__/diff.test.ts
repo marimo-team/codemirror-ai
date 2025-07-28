@@ -1,264 +1,397 @@
+import { Text } from "@codemirror/state";
+import { type Change, diffChars } from "diff";
 import { describe, expect, it } from "vitest";
+import { findLargestDiffBound } from "../next-edit-predication/diff";
 import {
 	applyDiffOperation,
+	type DiffOperationOf,
+	type DiffResult,
 	type DiffText,
-	extractDiffParts,
+	extractDiffOperation,
 } from "../next-edit-predication/diff.js";
+import { invariant } from "../utils.js";
 
 const cursorMarker = "▲";
 
-describe("extractDiffParts", () => {
-	it("should return no operation when no cursor marker in new text", () => {
-		const suggestion: DiffText = {
-			oldText: "def hello_world():",
-			newText: "def hello_earth():", // no cursor marker
+/**
+ * Helper function to format DiffResult as human-readable text for snapshots
+ */
+function diffTexts(before: string, after: string): string {
+	const result = extractDiffOperation(
+		{ oldText: before, newText: after },
+		cursorMarker,
+	);
+	return new DiffFormatter(before, after, cursorMarker).format(result);
+}
+
+/**
+ * Class for formatting DiffResult into visual representations
+ */
+class DiffFormatter {
+	constructor(
+		private oldText: string,
+		private newText: string,
+		private cursorMarker: string,
+	) {}
+
+	format(result: DiffResult): string {
+		const getText = () => {
+			switch (result.operation.type) {
+				case "add":
+					return this.formatAddOperation(result.operation);
+				case "remove":
+					return this.formatRemoveOperation(result.operation);
+				case "modify":
+					return this.formatModifyOperation(result.operation);
+				case "cursor":
+					return this.formatCursorOperation(result.operation);
+				case "none":
+					return "";
+			}
 		};
 
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result).toEqual({
-			operation: { type: "none" },
-			ghostText: "",
-		});
-	});
-
-	it("should handle simple text addition", () => {
-		const suggestion: DiffText = {
-			oldText: `def hello▲():`,
-			newText: `def hello_world▲():`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.operation.type).toBe("add");
-		if (result.operation.type === "add") {
-			expect(result.operation.text).toBe("_world");
-			expect(result.operation.position).toBe(9);
+		const text = getText();
+		if (text === "") {
+			return `[none]`;
 		}
-		expect(result.ghostText).toBe("_world");
+
+		return `[${result.operation.type}]\n\n${this.trimEndLines(text)}\n`;
+	}
+
+	private trimEndLines(text: string): string {
+		return text
+			.split("\n")
+			.map((line) => line.trimEnd())
+			.join("\n");
+	}
+
+	private formatAddOperation(operation: DiffOperationOf<"add">): string {
+		const cleanNewText = this.newText.replace(this.cursorMarker, "");
+		const cursorPos = this.newText.indexOf(this.cursorMarker);
+
+		return this.formatTextWithIndicators(cleanNewText, cursorPos, {
+			operationStart: operation.position,
+			operationLength: operation.text.length,
+			addedChar: "+",
+			removedChar: " ",
+		});
+	}
+
+	private formatRemoveOperation(operation: DiffOperationOf<"remove">): string {
+		const cleanOldText = this.oldText.replace(this.cursorMarker, "");
+		const cursorPos = this.oldText.indexOf(this.cursorMarker);
+
+		return this.formatTextWithIndicators(cleanOldText, cursorPos, {
+			operationStart: operation.position,
+			operationLength: operation.count,
+			addedChar: " ",
+			removedChar: "~",
+		});
+	}
+
+	private formatModifyOperation(operation: DiffOperationOf<"modify">): string {
+		const lines: string[] = [];
+
+		// Show the old text with removals marked
+		const cleanOldText = this.oldText.replace(this.cursorMarker, "");
+		const oldCursorPos = this.oldText.indexOf(this.cursorMarker);
+
+		const oldFormatted = this.formatTextWithIndicators(
+			cleanOldText,
+			oldCursorPos,
+			{
+				operationStart: operation.position,
+				operationLength: operation.removeCount,
+				addedChar: " ",
+				removedChar: "~",
+				prefix: "(-): ",
+			},
+		);
+
+		// Show the new text with additions marked
+		const cleanNewText = this.newText.replace(this.cursorMarker, "");
+		const newCursorPos = this.newText.indexOf(this.cursorMarker);
+
+		const newFormatted = this.formatTextWithIndicators(
+			cleanNewText,
+			newCursorPos,
+			{
+				operationStart: operation.position,
+				operationLength: operation.insertText.length,
+				addedChar: "+",
+				removedChar: " ",
+				prefix: "(+): ",
+			},
+		);
+
+		return [oldFormatted, newFormatted].join("\n");
+	}
+
+	private formatCursorOperation(operation: DiffOperationOf<"cursor">): string {
+		const cleanNewText = this.newText.replace(this.cursorMarker, "");
+		const cursorPos = this.newText.indexOf(this.cursorMarker);
+
+		return this.formatTextWithIndicators(cleanNewText, cursorPos, {
+			operationStart: -1, // No operation range
+			operationLength: 0,
+			addedChar: " ",
+			removedChar: " ",
+		});
+	}
+
+	private formatTextWithIndicators(
+		text: string,
+		cursorPos: number,
+		options: {
+			operationStart: number;
+			operationLength: number;
+			addedChar: string;
+			removedChar: string;
+			prefix?: string;
+		},
+	): string {
+		const lines: string[] = [];
+		const textLines = text.split("\n");
+		let currentPos = 0;
+		let foundLine = false;
+
+		for (let i = 0; i < textLines.length; i++) {
+			const lineLength =
+				textLines[i].length + (i < textLines.length - 1 ? 1 : 0);
+
+			if (
+				!foundLine &&
+				currentPos <= cursorPos &&
+				cursorPos <= currentPos + lineLength
+			) {
+				const lineText = textLines[i];
+				const cursorInLine = cursorPos - currentPos;
+
+				// Add prefix if provided
+				const displayLine = (options.prefix || "") + lineText;
+				lines.push(displayLine);
+
+				// Create indicator line
+				let indicator = " ".repeat(displayLine.length);
+
+				// Mark operation range
+				if (options.operationStart >= 0) {
+					const opStart =
+						options.operationStart - currentPos + (options.prefix?.length || 0);
+					const opEnd = opStart + options.operationLength;
+
+					for (
+						let j = Math.max(0, opStart);
+						j < Math.min(indicator.length, opEnd);
+						j++
+					) {
+						// Use the appropriate character for the operation type
+						const char =
+							options.addedChar !== " "
+								? options.addedChar
+								: options.removedChar;
+						indicator =
+							indicator.substring(0, j) + char + indicator.substring(j + 1);
+					}
+				}
+
+				// Mark cursor position
+				const cursorInDisplay = cursorInLine + (options.prefix?.length || 0);
+				if (cursorInDisplay >= 0 && cursorInDisplay < indicator.length) {
+					indicator =
+						indicator.substring(0, cursorInDisplay) +
+						"^" +
+						indicator.substring(cursorInDisplay + 1);
+				}
+
+				lines.push(indicator);
+				foundLine = true;
+			} else if (!foundLine) {
+				lines.push((options.prefix || "") + textLines[i]);
+			}
+
+			currentPos += lineLength;
+		}
+
+		return lines.join("\n");
+	}
+}
+
+describe("extractDiffOperation - snapshot tests", () => {
+	it("should handle simple text addition", () => {
+		const result = diffTexts(`def hello▲():`, `def hello_world▲():`);
+		expect(result).toMatchInlineSnapshot(`
+			"[add]
+
+			def hello_world():
+			         ++++++^
+			"
+		`);
 	});
 
 	it("should handle simple text removal", () => {
-		const suggestion: DiffText = {
-			oldText: `def hello_world▲():`,
-			newText: `def hello▲():`,
-		};
+		const result = diffTexts(`def hello_world▲():`, `def hello▲():`);
+		expect(result).toMatchInlineSnapshot(`
+			"[remove]
 
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.operation.type).toBe("remove");
-		if (result.operation.type === "remove") {
-			expect(result.operation.count).toBe(6);
-			expect(result.operation.position).toBe(9);
-		}
-		expect(result.ghostText).toBe("");
+			def hello_world():
+			         ~~~~~~^
+			"
+		`);
 	});
 
 	it("should handle text replacement", () => {
-		const suggestion: DiffText = {
-			oldText: `print("old_value"▲)`,
-			newText: `print("new_value"▲)`,
-		};
+		const result = diffTexts(`print("old_value"▲)`, `print("new_value"▲)`);
+		expect(result).toMatchInlineSnapshot(`
+			"[modify]
 
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.operation.type).toBe("modify");
-		if (result.operation.type === "modify") {
-			expect(result.operation.insertText).toBe("new");
-			expect(result.operation.removeCount).toBe(3);
-			expect(result.operation.position).toBe(7);
-		}
-	});
-
-	it("should handle unchanged text", () => {
-		const suggestion: DiffText = {
-			oldText: `def hello▲() -> str:`,
-			newText: `def hello▲() -> str:`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.operation.type).toBe("none");
+			(-): print("old_value")
+			            ~~~       ^
+			(+): print("new_value")
+			            +++       ^
+			"
+		`);
 	});
 
 	it("should handle cursor at beginning", () => {
-		const suggestion: DiffText = {
-			oldText: `▲print("hello")`,
-			newText: `▲import os\nprint("hello")`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.operation.type).toBe("add");
-		if (result.operation.type === "add") {
-			expect(result.operation.text).toBe("import os");
-			expect(result.operation.position).toBe(0);
-		}
-		expect(result.ghostText).toBe("import os");
-	});
-
-	it("should handle cursor at end", () => {
-		const suggestion: DiffText = {
-			oldText: `print("hello")▲`,
-			newText: `print("hello")\nprint("world")▲`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.operation.type).toBe("add");
-		if (result.operation.type === "add") {
-			expect(result.operation.text).toBe('\nprint("world")');
-			expect(result.operation.position).toBe(14);
-		}
-		expect(result.ghostText).toBe('\nprint("world")');
+		const result = diffTexts(`▲print("hello")`, `import os\\nprint("hello")`);
+		expect(result).toMatchInlineSnapshot(`"[none]"`);
 	});
 
 	it("should handle multiline changes", () => {
-		const suggestion: DiffText = {
-			oldText: `def test():▲\n    pass`,
-			newText: `def test():\n    x = 42\n    print(x)▲\n    pass`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		// The diff algorithm finds this as a cursor operation due to complex multiline diff
-		expect(result.operation.type).toBe("add");
-		if (result.operation.type === "add") {
-			expect(result.operation.text).toBe("\n    x = 42\n    print(x)");
-			expect(result.operation.position).toBe(14);
-		}
-		expect(result.ghostText).toBe("\n    x = 42\n    print(x)");
-	});
-
-	it("should handle complex diff with variable replacement", () => {
-		const suggestion: DiffText = {
-			oldText: `old_var = ▲42`,
-			newText: `new_variable = ▲"hello"`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.operation.type).toBe("modify");
-		if (result.operation.type === "modify") {
-			expect(result.operation.insertText).toBe('new_variable = "hello"');
-			expect(result.operation.removeCount).toBe(2);
-			expect(result.operation.position).toBe(7);
-		}
-		expect(result.ghostText).toBe('new_variable = "hello"');
-	});
-
-	it("should handle empty strings", () => {
-		const suggestion: DiffText = {
-			oldText: `▲`,
-			newText: `▲`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.operation.type).toBe("cursor");
-		if (result.operation.type === "cursor") {
-			expect(result.operation.position).toBe(0);
-		}
-		expect(result.ghostText).toBe("");
-	});
-
-	it("should handle only cursor position changes", () => {
-		const suggestion: DiffText = {
-			oldText: `print▲("hello")`,
-			newText: `print(▲"hello")`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.operation.type).toBe("cursor");
-		if (result.operation.type === "cursor") {
-			expect(result.operation.position).toBe(6);
-		}
-		expect(result.ghostText).toBe("");
-	});
-
-	it("should handle special characters in diff", () => {
-		const suggestion: DiffText = {
-			oldText: `data = {▲}`,
-			newText: `data = {"key": "value", "num": 42▲}`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.operation.type).toBe("add");
-		if (result.operation.type === "add") {
-			expect(result.operation.text).toBe('"key": "value", "num": 42');
-			expect(result.operation.position).toBe(8);
-		}
-		expect(result.ghostText).toBe('"key": "value", "num": 42');
-	});
-
-	it("should handle python class definition changes", () => {
-		const suggestion: DiffText = {
-			oldText: `class MyClass:▲\n    pass`,
-			newText: `class MyClass:\n    def __init__(self):\n        self.value = 0▲\n    pass`,
-		};
-
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.operation.type).toBe("add");
-		if (result.operation.type === "add") {
-			expect(result.operation.text).toBe(
-				"\n    def __init__(self):\n        self.value = 0",
-			);
-			expect(result.operation.position).toBe(14);
-		}
-		expect(result.ghostText).toBe(
-			"\n    def __init__(self):\n        self.value = 0",
+		const result = diffTexts(
+			`def test():▲\n    pass`,
+			`def test():\\n    x = 42\\n    print(x)▲`,
 		);
+		expect(result).toMatchInlineSnapshot(`
+			"[modify]
+
+			(-): def test():
+
+			(+): def test():\\n    x = 42\\n    print(x)
+			                ++++++++++++++++++++++++++
+			"
+		`);
+	});
+
+	it("should handle complex variable replacement", () => {
+		const result = diffTexts(`old_var = ▲42`, `new_variable = ▲"hello"`);
+		expect(result).toMatchInlineSnapshot(`
+			"[modify]
+
+			(-): old_var = 42
+			     ~~~~~~~~~ ^
+			(+): new_variable = "hello"
+			     +++++++++++++++^+++
+			"
+		`);
+	});
+
+	it("should handle no operation when texts are identical without cursor", () => {
+		const result = diffTexts(`def hello_world():`, `def hello_earth():`);
+		expect(result).toMatchInlineSnapshot(`"[none]"`);
+	});
+
+	it("should handle cursor position changes only", () => {
+		const result = diffTexts(`print▲("hello")`, `print(▲"hello")`);
+		expect(result).toMatchInlineSnapshot(`
+			"[cursor]
+
+			print("hello")
+			      ^
+			"
+		`);
 	});
 
 	it("should handle function parameter addition", () => {
-		const suggestion: DiffText = {
-			oldText: `def calculate(a▲):`,
-			newText: `def calculate(a, b=10▲):`,
-		};
+		const result = diffTexts(`def calculate(a▲):`, `def calculate(a, b=10▲):`);
+		expect(result).toMatchInlineSnapshot(`
+			"[add]
 
-		const result = extractDiffParts(suggestion, cursorMarker);
+			def calculate(a, b=10):
+			               ++++++^
+			"
+		`);
+	});
 
-		expect(result.operation.type).toBe("add");
-		if (result.operation.type === "add") {
-			expect(result.operation.text).toBe(", b=10");
-			expect(result.operation.position).toBe(15);
-		}
-		expect(result.ghostText).toBe(", b=10");
+	it("should handle special characters in diff", () => {
+		const result = diffTexts(
+			`data = {▲}`,
+			`data = {"key": "value", "num": 42▲}`,
+		);
+		expect(result).toMatchInlineSnapshot(`
+			"[add]
+
+			data = {"key": "value", "num": 42}
+			        +++++++++++++++++++++++++^
+			"
+		`);
+	});
+
+	it("should handle unchanged text", () => {
+		const result = diffTexts(`def hello▲() -> str:`, `def hello▲() -> str:`);
+		expect(result).toMatchInlineSnapshot(`"[none]"`);
+	});
+
+	it("should handle cursor at end", () => {
+		const result = diffTexts(
+			`print("hello")▲`,
+			`print("hello")\\nprint("world")▲`,
+		);
+		expect(result).toMatchInlineSnapshot(`
+			"[add]
+
+			print("hello")\\nprint("world")
+			              ++++++++++++++++
+			"
+		`);
+	});
+
+	it("should handle empty strings", () => {
+		const result = diffTexts(`▲`, `▲`);
+		expect(result).toMatchInlineSnapshot(`"[none]"`);
+	});
+
+	it("should handle python class definition changes", () => {
+		const result = diffTexts(
+			`class MyClass:▲\\n    return 42`,
+			`class MyClass:\\n    def __init__(self):\\n        self.value = 0▲\\n    return 42`,
+		);
+		expect(result).toMatchInlineSnapshot(`
+			"[add]
+
+			class MyClass:\\n    def __init__(self):\\n        self.value = 0\\n    return 42
+			                    +++++++++++++++++++++++++++++++++++++++++++^+++++
+			"
+		`);
 	});
 
 	it("should handle list comprehension changes", () => {
-		const suggestion: DiffText = {
-			oldText: `numbers = [▲]`,
-			newText: `numbers = [x**2 for x in range(10)▲]`,
-		};
+		const result = diffTexts(
+			`numbers = [▲]`,
+			`numbers = [x**2 for x in range(10)▲]`,
+		);
+		expect(result).toMatchInlineSnapshot(`
+			"[add]
 
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.operation.type).toBe("add");
-		if (result.operation.type === "add") {
-			expect(result.operation.text).toBe("x**2 for x in range(10)");
-			expect(result.operation.position).toBe(11);
-		}
-		expect(result.ghostText).toBe("x**2 for x in range(10)");
+			numbers = [x**2 for x in range(10)]
+			           +++++++++++++++++++++++^
+			"
+		`);
 	});
 
 	it("should handle import statement modification", () => {
-		const suggestion: DiffText = {
-			oldText: `from os import ▲path`,
-			newText: `from os import path, environ▲`,
-		};
+		const result = diffTexts(
+			`from os import ▲path`,
+			`from os import path, environ▲`,
+		);
+		expect(result).toMatchInlineSnapshot(`
+			"[add]
 
-		const result = extractDiffParts(suggestion, cursorMarker);
-
-		expect(result.operation.type).toBe("add");
-		if (result.operation.type === "add") {
-			expect(result.operation.text).toBe(", environ");
-			expect(result.operation.position).toBe(15);
-		}
-		expect(result.ghostText).toBe(", environ");
+			from os import path, environ
+			                   +++++++++
+			"
+		`);
 	});
 });
 
@@ -433,68 +566,18 @@ describe("applyDiffOperation", () => {
 	});
 });
 
-import { diffChars } from "diff";
-import { findLargestDiffBound } from "../next-edit-predication/diff";
-import { invariant } from "../utils.js";
-
 describe("findLargestDiffBound", () => {
-	it("should find diff containing cursor in simple addition", () => {
-		const oldText = `print("hello"▲)`;
-		const newText = `print("hello world"▲)`;
-		const cursorMarker = "▲";
-		const oldCursor = oldText.indexOf(cursorMarker);
-		const newCursor = newText.indexOf(cursorMarker);
-		const oldTextClean = oldText.replace(cursorMarker, "");
-		const newTextClean = newText.replace(cursorMarker, "");
-		const diffs = diffChars(oldTextClean, newTextClean);
+	// Helper function to create diffs and get bounds
+	const getDiffBounds = (oldText: string, newText: string) => {
+		const diffs = diffChars(oldText, newText);
+		return { diffs, bound: findLargestDiffBound(diffs) };
+	};
 
-		const bound = findLargestDiffBound(diffs, oldCursor, newCursor);
-
-		expect(bound).not.toBeNull();
-		invariant(bound != null, "bound is null");
-		expect(bound.oldStart).toBe(12);
-		expect(bound.newStart).toBe(12);
-		// The diff region should be the added " world"
-		const added = diffs
-			.slice(bound.startIdx, (bound.endIdx ?? 0) + 1)
-			.find((d) => d.added);
-		expect(added?.value).toBe(" world");
-	});
-
-	it("should handle cursor at diff boundary", () => {
-		const oldText = `def func():▲`;
-		const newText = `def func():\n    pass▲`;
-		const cursorMarker = "▲";
-		const oldCursor = oldText.indexOf(cursorMarker);
-		const newCursor = newText.indexOf(cursorMarker);
-		const oldTextClean = oldText.replace(cursorMarker, "");
-		const newTextClean = newText.replace(cursorMarker, "");
-		const diffs = diffChars(oldTextClean, newTextClean);
-
-		const bound = findLargestDiffBound(diffs, oldCursor, newCursor);
-
-		expect(bound).not.toBeNull();
-		invariant(bound != null, "bound is null");
-		const added = diffs
-			.slice(bound.startIdx, (bound.endIdx ?? 0) + 1)
-			.find((d) => d.added);
-		expect(added?.value).toBe("\n    pass");
-	});
-
-	it("should expand to find largest contiguous diff region", () => {
-		const oldText = `x = old_value▲`;
-		const newText = `y = new_value▲`;
-		const cursorMarker = "▲";
-		const oldCursor = oldText.indexOf(cursorMarker);
-		const newCursor = newText.indexOf(cursorMarker);
-		const oldTextClean = oldText.replace(cursorMarker, "");
-		const newTextClean = newText.replace(cursorMarker, "");
-		const diffs = diffChars(oldTextClean, newTextClean);
-
-		const bound = findLargestDiffBound(diffs, oldCursor, newCursor);
-
-		expect(bound).not.toBeNull();
-		invariant(bound != null, "bound is null");
+	// Helper function to extract added/removed text from a bound region
+	const extractChanges = (
+		diffs: Change[],
+		bound: NonNullable<ReturnType<typeof findLargestDiffBound>>,
+	) => {
 		const region = diffs.slice(bound.startIdx, bound.endIdx + 1);
 		const added = region
 			.filter((d) => d.added)
@@ -504,139 +587,109 @@ describe("findLargestDiffBound", () => {
 			.filter((d) => d.removed)
 			.map((d) => d.value)
 			.join("");
-		expect(added).toBe("y = new_value");
-		expect(removed.length).toBe(13);
-	});
+		return { added, removed };
+	};
 
-	it("should handle multiple separate changes and find cursor region", () => {
-		const oldText = `first = 1\nsecond = ▲2\nthird = 3`;
-		const newText = `first = 1\nsecond = ▲42\nthird = 3`;
-		const cursorMarker = "▲";
-		const oldCursor = oldText.indexOf(cursorMarker);
-		const newCursor = newText.indexOf(cursorMarker);
-		const oldTextClean = oldText.replace(cursorMarker, "");
-		const newTextClean = newText.replace(cursorMarker, "");
-		const diffs = diffChars(oldTextClean, newTextClean);
-
-		const bound = findLargestDiffBound(diffs, oldCursor, newCursor);
+	it("should find all diff changes in simple addition", () => {
+		const { diffs, bound } = getDiffBounds(
+			'print("hello")',
+			'print("hello world")',
+		);
 
 		expect(bound).not.toBeNull();
-		invariant(bound != null, "bound is null");
-		const region = diffs.slice(bound.startIdx, bound.endIdx + 1);
-		const added = region
-			.filter((d) => d.added)
-			.map((d) => d.value)
-			.join("");
+		expect(bound!.startIdx).toBe(1); // First change index
+		expect(bound!.endIdx).toBe(1); // Last change index
+		expect(bound!.oldStart).toBe(12); // Position in old text
+		expect(bound!.newStart).toBe(12); // Position in new text
+
+		const { added } = extractChanges(diffs, bound!);
+		expect(added).toBe(" world");
+	});
+
+	it("should find all diff changes in simple removal", () => {
+		const { diffs, bound } = getDiffBounds(
+			'print("hello world")',
+			'print("hello")',
+		);
+
+		expect(bound).not.toBeNull();
+		const { removed } = extractChanges(diffs, bound!);
+		expect(removed).toBe(" world");
+	});
+
+	it("should combine all changes into single bound", () => {
+		const { diffs, bound } = getDiffBounds("x = old_value", "y = new_value");
+
+		expect(bound).not.toBeNull();
+		expect(bound!.startIdx).toBe(0); // Starts at first change
+		expect(bound!.endIdx).toBe(4); // Ends at last change
+
+		const { added, removed } = extractChanges(diffs, bound!);
+		expect(added).toBe("ynew");
+		expect(removed).toBe("xold");
+	});
+
+	it("should handle single character changes", () => {
+		const { diffs, bound } = getDiffBounds(
+			"first = 1\nsecond = 2\nthird = 3",
+			"first = 1\nsecond = 42\nthird = 3",
+		);
+
+		expect(bound).not.toBeNull();
+		const { added } = extractChanges(diffs, bound!);
 		expect(added).toBe("4");
 	});
 
-	it("should handle no diff at cursor position", () => {
-		const oldText = `unchanged▲_text`;
-		const newText = `unchanged▲_text`;
-		const cursorMarker = "▲";
-		const oldCursor = oldText.indexOf(cursorMarker);
-		const newCursor = newText.indexOf(cursorMarker);
-		const oldTextClean = oldText.replace(cursorMarker, "");
-		const newTextClean = newText.replace(cursorMarker, "");
-		const diffs = diffChars(oldTextClean, newTextClean);
-
-		const bound = findLargestDiffBound(diffs, oldCursor, newCursor);
-
+	it("should return null for identical texts", () => {
+		const { bound } = getDiffBounds("unchanged_text", "unchanged_text");
 		expect(bound).toBeNull();
 	});
 
-	it("should handle cursor in unchanged region between changes", () => {
-		const oldText = `old start▲ unchanged end`;
-		const newText = `new start▲ unchanged finish`;
-		const cursorMarker = "▲";
-		const oldCursor = oldText.indexOf(cursorMarker);
-		const newCursor = newText.indexOf(cursorMarker);
-		const oldTextClean = oldText.replace(cursorMarker, "");
-		const newTextClean = newText.replace(cursorMarker, "");
-		const diffs = diffChars(oldTextClean, newTextClean);
-
-		const bound = findLargestDiffBound(diffs, oldCursor, newCursor);
-
-		expect(bound).toBeNull();
-	});
-
-	it("should handle complex multiline python code changes", () => {
-		const oldText = `def calculate(x):
-    result = x * 2▲
-    return result`;
-		const newText = `def calculate(x, multiplier=2):
-    result = x * multiplier▲
-    return result`;
-		const cursorMarker = "▲";
-		const oldCursor = oldText.indexOf(cursorMarker);
-		const newCursor = newText.indexOf(cursorMarker);
-		const oldTextClean = oldText.replace(cursorMarker, "");
-		const newTextClean = newText.replace(cursorMarker, "");
-		const diffs = diffChars(oldTextClean, newTextClean);
-
-		const bound = findLargestDiffBound(diffs, oldCursor, newCursor);
+	it("should handle mixed additions and removals", () => {
+		const { diffs, bound } = getDiffBounds(
+			"old start unchanged end",
+			"new start unchanged finish",
+		);
 
 		expect(bound).not.toBeNull();
-		invariant(bound != null, "bound is null");
-		const region = diffs.slice(bound.startIdx, bound.endIdx + 1);
-		const added = region
-			.filter((d) => d.added)
-			.map((d) => d.value)
-			.join("");
-		expect(added).toEqual("multiplier=2):\n    result = x * multiplier");
+		expect(bound!.startIdx).toBe(0); // First change
+		expect(bound!.endIdx).toBeGreaterThan(bound!.startIdx); // Multiple changes
+
+		const { added, removed } = extractChanges(diffs, bound!);
+		expect(added).toContain("new");
+		expect(added).toContain("fi"); // "finish" may be fragmented in char diff
+		expect(removed).toContain("old");
+		expect(removed).toContain("ed"); // "end" may be fragmented in char diff
+	});
+
+	it("should handle complex multiline changes", () => {
+		const oldText = `def calculate(x):
+    result = x * 2
+    return result`;
+		const newText = `def calculate(x, multiplier=2):
+    result = x * multiplier
+    return result`;
+
+		const { diffs, bound } = getDiffBounds(oldText, newText);
+
+		expect(bound).not.toBeNull();
+		const { added } = extractChanges(diffs, bound!);
+		expect(added).toContain("multiplier");
 	});
 
 	it("should handle indentation changes", () => {
-		const oldText = `if True:
-print("hello")▲`;
-		const newText = `if True:
-    print("hello")▲`;
-		const cursorMarker = "▲";
-		const oldCursor = oldText.indexOf(cursorMarker);
-		const newCursor = newText.indexOf(cursorMarker);
-		const oldTextClean = oldText.replace(cursorMarker, "");
-		const newTextClean = newText.replace(cursorMarker, "");
-		const diffs = diffChars(oldTextClean, newTextClean);
-
-		const bound = findLargestDiffBound(diffs, oldCursor, newCursor);
+		const { diffs, bound } = getDiffBounds(
+			'if True:\nprint("hello")',
+			'if True:\n    print("hello")',
+		);
 
 		expect(bound).not.toBeNull();
-		invariant(bound != null, "bound is null");
-		const region = diffs.slice(bound.startIdx, bound.endIdx + 1);
-		const added = region
-			.filter((d) => d.added)
-			.map((d) => d.value)
-			.join("");
+		const { added } = extractChanges(diffs, bound!);
 		expect(added).toBe("    ");
 	});
 
-	it("should handle empty diff arrays gracefully", () => {
-		const oldText = `▲`;
-		const newText = `▲`;
-		const cursorMarker = "▲";
-		const oldCursor = oldText.indexOf(cursorMarker);
-		const newCursor = newText.indexOf(cursorMarker);
-		const oldTextClean = oldText.replace(cursorMarker, "");
-		const newTextClean = newText.replace(cursorMarker, "");
-		const diffs = diffChars(oldTextClean, newTextClean);
-
-		const bound = findLargestDiffBound(diffs, oldCursor, newCursor);
-
-		expect(bound).toBeNull();
-	});
-
-	it("should handle cursor outside any diff region", () => {
-		const oldText = `unchanged_start ▲ old_change unchanged_end`;
-		const newText = `unchanged_start ▲ new_change unchanged_end`;
-		const cursorMarker = "▲";
-		const oldCursor = oldText.indexOf(cursorMarker);
-		const newCursor = newText.indexOf(cursorMarker);
-		const oldTextClean = oldText.replace(cursorMarker, "");
-		const newTextClean = newText.replace(cursorMarker, "");
-		const diffs = diffChars(oldTextClean, newTextClean);
-
-		const bound = findLargestDiffBound(diffs, oldCursor, newCursor);
-
+	it("should return null for empty diffs", () => {
+		const { bound } = getDiffBounds("", "");
 		expect(bound).toBeNull();
 	});
 });

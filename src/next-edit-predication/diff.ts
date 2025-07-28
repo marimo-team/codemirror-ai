@@ -1,4 +1,4 @@
-import { type Change, diffChars } from "diff";
+import { type Change, diffChars, diffWords } from "diff";
 import { debug } from "./debug.js";
 
 /**
@@ -37,77 +37,34 @@ export interface DiffResult {
 }
 
 /**
- * Finds the largest contiguous diff region that contains the cursor
+ * Finds the bounds that encompass all diff changes
  */
 export function findLargestDiffBound(
 	diffs: Change[],
-	cursorPosInOld: number,
-	cursorPosInNew: number,
 ): {
 	startIdx: number;
 	endIdx: number;
 	oldStart: number;
 	newStart: number;
 } | null {
-	let oldPos = 0;
-	let newPos = 0;
+	if (diffs.length === 0) return null;
 
-	// Find which diff contains the cursor
-	let cursorDiffIdx = -1;
+	// Find first and last indices with changes
+	let startIdx = -1;
+	let endIdx = -1;
 
 	for (let i = 0; i < diffs.length; i++) {
 		const diff = diffs[i];
-		if (diff === undefined) continue;
-
-		const oldLen = diff.removed
-			? diff.value.length
-			: diff.added
-				? 0
-				: diff.value.length;
-		const newLen = diff.added
-			? diff.value.length
-			: diff.removed
-				? 0
-				: diff.value.length;
-
-		// Check if cursor is within this diff's range
-		if (
-			oldPos <= cursorPosInOld &&
-			cursorPosInOld <= oldPos + oldLen &&
-			newPos <= cursorPosInNew &&
-			cursorPosInNew <= newPos + newLen
-		) {
-			cursorDiffIdx = i;
-			break;
+		if (diff?.added || diff?.removed) {
+			if (startIdx === -1) startIdx = i;
+			endIdx = i;
 		}
-
-		oldPos += oldLen;
-		newPos += newLen;
 	}
 
-	if (cursorDiffIdx === -1) return null;
+	// No changes found
+	if (startIdx === -1) return null;
 
-	// Expand to find the largest contiguous change region
-	let startIdx = cursorDiffIdx;
-	let endIdx = cursorDiffIdx;
-
-	// Expand backwards while we have changes
-	while (
-		startIdx > 0 &&
-		(diffs[startIdx - 1]?.added || diffs[startIdx - 1]?.removed)
-	) {
-		startIdx--;
-	}
-
-	// Expand forwards while we have changes
-	while (
-		endIdx < diffs.length - 1 &&
-		(diffs[endIdx + 1]?.added || diffs[endIdx + 1]?.removed)
-	) {
-		endIdx++;
-	}
-
-	// Calculate positions
+	// Calculate positions at the start of the diff region
 	let oldStart = 0;
 	let newStart = 0;
 
@@ -146,35 +103,45 @@ export function extractDiffParts(
 	const oldTextClean = oldText.replace(cursorMarker, "");
 	const newTextClean = newText.replace(cursorMarker, "");
 
-	// Compute diffs
-	const diffs = diffChars(oldTextClean, newTextClean);
+	// Compute diffs - use diffWords for multi-edit scenarios, diffChars for single word changes
+	let diffs = diffWords(oldTextClean, newTextClean);
 
-	// Find the largest diff bound containing the cursor
-	const bound = findLargestDiffBound(
-		diffs,
-		oldCursorPosition,
-		newCursorPosition,
-	);
+	// Check if we should fall back to diffChars for more granular control
+	const wordChanges = diffs.filter((d) => d.added || d.removed);
+	if (wordChanges.length <= 2) {
+		// For small changes, check if they're single words without whitespace
+		const shouldUseChars = wordChanges.every((change) => {
+			const trimmed = change.value.trim();
+			return (
+				trimmed.length > 0 && !trimmed.includes(" ") && !trimmed.includes("\n")
+			);
+		});
+
+		if (shouldUseChars) {
+			diffs = diffChars(oldTextClean, newTextClean);
+		}
+	}
+
+	// Find the diff bounds (encompasses all changes)
+	const bound = findLargestDiffBound(diffs);
 
 	if (!bound) {
-		debug("No diff bound found, checking if texts are identical");
+		debug("No changes found, checking for cursor-only movement");
 		if (oldTextClean === newTextClean) {
-			// Texts are identical - check if they're both empty (just cursor markers)
-			if (oldTextClean === "") {
-				// Both texts are empty, just cursor markers
+			// Texts are identical - check for cursor movement
+			if (oldCursorPosition !== newCursorPosition) {
 				return {
-					operation: { type: "cursor", position: 0 },
+					operation: { type: "cursor", position: newCursorPosition },
 					ghostText: "",
 				};
 			} else {
-				// Non-empty identical texts - no operation needed
 				return {
 					operation: { type: "none" },
 					ghostText: "",
 				};
 			}
 		} else {
-			// Texts differ but cursor not in diff region
+			// This shouldn't happen if texts differ but no diffs found
 			return {
 				operation: { type: "none" },
 				ghostText: "",
@@ -216,9 +183,10 @@ export function extractDiffParts(
 		}
 	}
 
-	// Calculate what text will appear after the cursor in the final result
-	// For this, we need to compute what the new text looks like after the cursor position
+	// Calculate ghost text - text that appears after cursor in the result
 	let ghostText = "";
+	
+	// Calculate the position where the new text will appear after applying changes
 	let currentNewPos = bound.newStart;
 	let foundCursor = false;
 
