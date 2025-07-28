@@ -432,25 +432,47 @@ export class ModifyWidget extends WidgetType {
 		tooltip.appendChild(addedLine);
 		document.body.appendChild(tooltip);
 
-		// Position tooltip to the right of the widget position
+		// Position tooltip to the right of the end of the line
 		const positionTooltip = () => {
-			const rect = referenceElement.getBoundingClientRect();
+			// Find the line containing the modification
+			const line = view.state.doc.lineAt(this.operation.position);
+			const lineEnd = line.to;
+			
+			// Get the coordinates for the end of the line
+			const lineEndPos = view.coordsAtPos(lineEnd);
 			const tooltipRect = tooltip.getBoundingClientRect();
 
-			// Position to the right of the widget position
-			const left = rect.left + TOOLTIP_OFFSET_RIGHT;
-			const top = rect.top + (rect.height - tooltipRect.height) / 2;
+			if (lineEndPos) {
+				// Position to the right of the end of the line
+				const left = lineEndPos.right + TOOLTIP_OFFSET_RIGHT;
+				const top = lineEndPos.top + (lineEndPos.bottom - lineEndPos.top - tooltipRect.height) / 2;
 
-			// Keep tooltip within viewport bounds
-			const maxLeft = window.innerWidth - tooltipRect.width - 8;
-			const finalLeft = Math.min(left, maxLeft);
-			const finalTop = Math.max(
-				8,
-				Math.min(top, window.innerHeight - tooltipRect.height - 8),
-			);
+				// Keep tooltip within viewport bounds
+				const maxLeft = window.innerWidth - tooltipRect.width - 8;
+				const finalLeft = Math.min(left, maxLeft);
+				const finalTop = Math.max(
+					8,
+					Math.min(top, window.innerHeight - tooltipRect.height - 8),
+				);
 
-			tooltip.style.left = `${finalLeft}px`;
-			tooltip.style.top = `${finalTop}px`;
+				tooltip.style.left = `${finalLeft}px`;
+				tooltip.style.top = `${finalTop}px`;
+			} else {
+				// Fallback to widget position if line end coords not available
+				const rect = referenceElement.getBoundingClientRect();
+				const left = rect.left + TOOLTIP_OFFSET_RIGHT;
+				const top = rect.top + (rect.height - tooltipRect.height) / 2;
+
+				const maxLeft = window.innerWidth - tooltipRect.width - 8;
+				const finalLeft = Math.min(left, maxLeft);
+				const finalTop = Math.max(
+					8,
+					Math.min(top, window.innerHeight - tooltipRect.height - 8),
+				);
+
+				tooltip.style.left = `${finalLeft}px`;
+				tooltip.style.top = `${finalTop}px`;
+			}
 		};
 
 		// Position tooltip immediately
