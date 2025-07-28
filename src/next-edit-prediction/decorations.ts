@@ -103,67 +103,6 @@ export function createModifyDecoration(
 	];
 }
 
-// /**
-//  * Widget for displaying deletion operations with red background highlight
-//  *
-//  * unused
-//  */
-// export class DeletionWidget extends WidgetType {
-// 	operation: DiffOperationOf<"remove">;
-// 	onAccept: Command;
-
-// 	constructor(operation: DiffOperationOf<"remove">, onAccept: Command) {
-// 		super();
-// 		this.operation = operation;
-// 		this.onAccept = onAccept;
-// 	}
-
-// 	toDOM(view: EditorView) {
-// 		const container = document.createElement("span");
-// 		container.className = "cm-deletion-widget";
-
-// 		if (this.operation.type === "remove") {
-// 			container.style.cssText = `
-// 				display: inline;
-// 				background: rgba(215, 58, 73, 0.2);
-// 				border-radius: 3px;
-// 				padding: 1px 3px;
-// 				margin: 0 1px;
-// 				border: 1px solid rgba(215, 58, 73, 0.4);
-// 				position: relative;
-// 				cursor: pointer;
-// 			`;
-
-// 			// Create a placeholder for the deleted content
-// 			const deletedSpan = document.createElement("span");
-// 			deletedSpan.style.cssText = `
-// 				color: #d73a49;
-// 				font-style: italic;
-// 				opacity: 0.8;
-// 				font-size: 0.9em;
-// 			`;
-// 			deletedSpan.textContent = view.state.doc.sliceString(
-// 				this.operation.position,
-// 				this.operation.position + this.operation.count,
-// 			);
-// 			container.appendChild(deletedSpan);
-// 		}
-
-// 		container.onclick = (e) => this.accept(e, view);
-// 		return container;
-// 	}
-
-// 	accept(e: MouseEvent, view: EditorView) {
-// 		const config = view.state.facet(suggestionConfigFacet);
-// 		if (!config.acceptOnClick) return;
-
-// 		e.stopPropagation();
-// 		e.preventDefault();
-
-// 		return this.onAccept(view);
-// 	}
-// }
-
 /**
  * Widget for highlighting existing text that will be removed with red background
  */
@@ -402,7 +341,7 @@ export class ModifyWidget extends WidgetType {
 			box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 			padding: 0;
 			min-width: 120px;
-			max-width: 400px;
+			max-width: 80vw;
 		`;
 
 		// Get full document text and create contextual diff
@@ -478,9 +417,26 @@ export class ModifyWidget extends WidgetType {
 		// Position tooltip immediately
 		requestAnimationFrame(positionTooltip);
 
-		// Handle scroll events to reposition tooltip
+		// Handle scroll events to hide tooltip when text is out of viewport
 		const scrollHandler = () => {
-			requestAnimationFrame(positionTooltip);
+			requestAnimationFrame(() => {
+				// Check if the line containing the modification is still visible
+				const line = view.state.doc.lineAt(this.operation.position);
+				const lineEndPos = view.coordsAtPos(line.to);
+
+				if (
+					!lineEndPos ||
+					lineEndPos.top < 0 ||
+					lineEndPos.bottom > window.innerHeight
+				) {
+					// Hide tooltip when text is out of viewport
+					tooltip.style.display = "none";
+				} else {
+					// Show tooltip and maintain its position relative to the text
+					tooltip.style.display = "block";
+					positionTooltip();
+				}
+			});
 		};
 
 		// Listen for scroll events on the editor's scrollable element
@@ -489,6 +445,9 @@ export class ModifyWidget extends WidgetType {
 
 		// Also listen for window scroll in case editor is in a scrollable container
 		window.addEventListener("scroll", scrollHandler, { passive: true });
+
+		// Listen for window resize to reposition tooltip
+		window.addEventListener("resize", scrollHandler, { passive: true });
 
 		// Store references for cleanup in destroy()
 		this.tooltip = tooltip;
@@ -516,12 +475,52 @@ export class ModifyWidget extends WidgetType {
 		if (this.scrollElement && this.scrollHandler) {
 			this.scrollElement.removeEventListener("scroll", this.scrollHandler);
 			window.removeEventListener("scroll", this.scrollHandler);
+			window.removeEventListener("resize", this.scrollHandler);
 		}
 
 		// Remove tooltip from DOM
 		if (this.tooltip && this.tooltip.parentNode) {
 			this.tooltip.parentNode.removeChild(this.tooltip);
 		}
+	}
+}
+
+/**
+ * Widget to show where the cursor will jump to after accepting a suggestion
+ */
+export class CursorJumpWidget extends WidgetType {
+	constructor() {
+		super();
+	}
+
+	toDOM(view: EditorView) {
+		const container = document.createElement("span");
+		container.className = "cm-cursor-jump-indicator";
+		container.style.cssText = `
+			display: inline-block;
+			width: 2px;
+			height: 1.2em;
+			background: #007acc;
+			opacity: 0.6;
+			margin: 0 1px;
+			animation: cm-cursor-blink 1s infinite;
+			vertical-align: text-bottom;
+		`;
+
+		// Add blinking animation
+		if (!document.querySelector("#cm-cursor-jump-styles")) {
+			const style = document.createElement("style");
+			style.id = "cm-cursor-jump-styles";
+			style.textContent = `
+				@keyframes cm-cursor-blink {
+					0%, 50% { opacity: 0.6; }
+					51%, 100% { opacity: 0.2; }
+				}
+			`;
+			document.head.appendChild(style);
+		}
+
+		return container;
 	}
 }
 
@@ -541,6 +540,11 @@ export class AcceptIndicatorWidget extends WidgetType {
 	toDOM(view: EditorView) {
 		debug("AcceptIndicatorWidget.toDOM called");
 		const container = document.createElement("div");
+
+		// Don't show if showAcceptReject is false
+		const config = view.state.facet(suggestionConfigFacet);
+		if (!config.showAcceptReject) return container;
+
 		container.style.cssText = `
       display: inline-flex;
       gap: 8px;

@@ -21,6 +21,7 @@ import {
 	createModifyDecoration,
 	createRemovalDecoration,
 	GhostTextWidget,
+	CursorJumpWidget,
 } from "./decorations.js";
 import { type DiffOperation, extractDiffOperation } from "./diff.js";
 import { suggestionConfigFacet } from "./state.js";
@@ -85,28 +86,33 @@ export function createSuggestionDecorations(
 		const startPos = operation.position;
 		decorations.push(
 			Decoration.widget({
-				widget: new GhostTextWidget(operation, acceptSuggestion),
+				widget: new GhostTextWidget(operation, acceptNepSuggestion),
 				side: 1, // 1 means after the position
 			}).range(startPos),
 		);
 		decorations.push(
 			Decoration.widget({
-				widget: new AcceptIndicatorWidget(acceptSuggestion, rejectSuggestion),
+				widget: new AcceptIndicatorWidget(
+					acceptNepSuggestion,
+					rejectNepSuggestion,
+				),
 				side: 1, // 1 means after the position
 			}).range(startPos),
 		);
 	}
 	if (operation.type === "remove") {
-		decorations.push(...createRemovalDecoration(operation, acceptSuggestion));
+		decorations.push(
+			...createRemovalDecoration(operation, acceptNepSuggestion),
+		);
 	}
 	if (operation.type === "modify") {
-		decorations.push(...createModifyDecoration(operation, acceptSuggestion));
+		decorations.push(...createModifyDecoration(operation, acceptNepSuggestion));
 	}
 	if (operation.type === "cursor") {
-		// For cursor operations, show an indicator at the cursor position
+		// For cursor operations, show where the cursor will jump to
 		decorations.push(
 			Decoration.widget({
-				widget: new AcceptIndicatorWidget(acceptSuggestion, rejectSuggestion),
+				widget: new CursorJumpWidget(),
 				side: 1, // 1 means after the position
 			}).range(operation.position),
 		);
@@ -119,11 +125,11 @@ export function createSuggestionDecorations(
 }
 
 /**
- * Rendered by `renderNextEditPredicationPlugin`,
+ * Rendered by `renderNextEditPredictionPlugin`,
  * this creates multiple decoration widgets for the ranges
  * where changes occur in the document.
  */
-function nextEditPredicationDecoration(suggestion: DiffSuggestion) {
+function nextEditPredictionDecoration(suggestion: DiffSuggestion) {
 	debug("====old text====");
 	debug(suggestion.oldText);
 	debug("====new text====");
@@ -206,7 +212,7 @@ export const fetchSuggestion = ViewPlugin.fromClass(
 	},
 );
 
-const renderNextEditPredicationPlugin = ViewPlugin.fromClass(
+const renderNextEditPredictionPlugin = ViewPlugin.fromClass(
 	class Plugin {
 		decorations: DecorationSet;
 		constructor() {
@@ -222,7 +228,7 @@ const renderNextEditPredicationPlugin = ViewPlugin.fromClass(
 				return;
 			}
 
-			this.decorations = nextEditPredicationDecoration(suggestion);
+			this.decorations = nextEditPredictionDecoration(suggestion);
 		}
 	},
 	{
@@ -232,7 +238,7 @@ const renderNextEditPredicationPlugin = ViewPlugin.fromClass(
 
 // COMMANDS
 
-const acceptSuggestion: Command = (view: EditorView) => {
+export const acceptNepSuggestion: Command = (view: EditorView) => {
 	const suggestion = view.state.field(NextEditPredictionState)?.suggestion;
 
 	// If there is no suggestion, do nothing and let the default keymap handle it
@@ -250,7 +256,7 @@ const acceptSuggestion: Command = (view: EditorView) => {
 	return true;
 };
 
-const rejectSuggestion: Command = (view: EditorView) => {
+export const rejectNepSuggestion: Command = (view: EditorView) => {
 	const suggestion = view.state.field(NextEditPredictionState)?.suggestion;
 
 	// If there is no suggestion, do nothing
@@ -272,15 +278,15 @@ const rejectSuggestion: Command = (view: EditorView) => {
  * Attaches a keybinding on `Tab` that accepts
  * the suggestion if there is one.
  */
-const nextEditPredicationKeymap = Prec.highest(
+const nextEditPredictionKeymap = Prec.highest(
 	keymap.of([
 		{
 			key: "Tab",
-			run: acceptSuggestion,
+			run: acceptNepSuggestion,
 		},
 		{
 			key: "Escape",
-			run: rejectSuggestion,
+			run: rejectNepSuggestion,
 		},
 	]),
 );
@@ -301,6 +307,7 @@ interface NextEditPredictionOptions {
 	/**
 	 * Whether clicking the suggestion will
 	 * automatically accept it.
+	 * @default true
 	 */
 	acceptOnClick?: boolean;
 
@@ -314,6 +321,18 @@ interface NextEditPredictionOptions {
 		to: number,
 		insert: string,
 	) => void;
+
+	/**
+	 * Whether to include the default keymap.
+	 * @default true
+	 */
+	defaultKeymap?: boolean;
+
+	/**
+	 * Show the accept/reject buttons.
+	 * @default true
+	 */
+	showAcceptReject?: boolean;
 }
 
 /**
@@ -321,13 +340,24 @@ interface NextEditPredictionOptions {
  * auto suggestions.
  */
 export function nextEditPrediction(options: NextEditPredictionOptions) {
-	const { delay = 500, acceptOnClick = true, onEdit } = options;
+	const {
+		delay = 500,
+		acceptOnClick = true,
+		onEdit,
+		defaultKeymap = true,
+		showAcceptReject = true,
+	} = options;
 	const fetchFn = debouncePromise(options.fetchFn, delay);
 	return [
-		suggestionConfigFacet.of({ acceptOnClick, fetchFn, onEdit }),
+		suggestionConfigFacet.of({
+			acceptOnClick,
+			fetchFn,
+			onEdit,
+			showAcceptReject,
+		}),
 		NextEditPredictionState,
 		fetchSuggestion,
-		renderNextEditPredicationPlugin,
-		nextEditPredicationKeymap,
+		renderNextEditPredictionPlugin,
+		defaultKeymap ? nextEditPredictionKeymap : [],
 	];
 }

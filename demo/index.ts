@@ -8,15 +8,16 @@ import {
 } from "@codemirror/view";
 import { basicSetup, EditorView } from "codemirror";
 import { aiExtension } from "../src/inline-edit.js";
-import { PredicationBackend } from "../src/next-edit-predication/backend.js";
+import { PredictionBackend } from "../src/next-edit-prediction/backend.js";
 import {
 	AcceptIndicatorWidget,
+	CursorJumpWidget,
 	createModifyDecoration,
 	createRemovalDecoration,
 	GhostTextWidget,
-} from "../src/next-edit-predication/decorations.js";
-import type { DiffOperation } from "../src/next-edit-predication/diff.js";
-import { nextEditPrediction } from "../src/next-edit-predication/extension.js";
+} from "../src/next-edit-prediction/decorations.js";
+import type { DiffOperation } from "../src/next-edit-prediction/diff.js";
+import { nextEditPrediction } from "../src/next-edit-prediction/extension.js";
 
 const logger = console;
 
@@ -49,22 +50,84 @@ def quick_sort(arr: list) -> list:
 quick_sort([1, 2, 3, 4, 5])
 ${"\n".repeat(4)}`;
 
-const decorationsDoc = `def calculate_sum(a, b):
+const decorationsDoc = `# AI Code Editor Decorations Demo
+# This file demonstrates different types of code suggestions and decorations
+
+def calculate_sum(a, b):
     # This function will sum two numbers
     return a + b
 
-def process_data(items):
-    # Process each item in the list
-    return [item * 2 for item in items]
+class DataProcessor:
+    def __init__(self, data):
+        self.data = data
+        self.results = []
+    
+    def process_data(self, items):
+        # Process each item in the list
+        return [item * 2 for item in items]
+    
+    def validate_input(self, value):
+        if value is None:
+            raise ValueError("Input cannot be None")
+        return True
 
-def square(a):
-    result = a * 2
+def square(x):
+    result = x * 2
     return result
-double(a)
 
-# Example usage
+def double(a):
+    return a * 2
+
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+
+# Mathematical operations
+def factorial(n):
+    if n <= 1:
+        return 1
+    return n * factorial(n-1)
+
+# String processing utilities
+def reverse_string(text):
+    return text[::-1]
+
+def capitalize_words(sentence):
+    return ' '.join(word.capitalize() for word in sentence.split())
+
+# File operations
+def read_file(filename):
+    with open(filename, 'r') as f:
+        return f.read()
+
+def write_file(filename, content):
+    with open(filename, 'w') as f:
+        f.write(content)
+
+# Example usage and cursor position demonstrations
 result = calculate_sum(10, 20)
-processed = process_data([1, 2, 3, 4, 5])`;
+processor = DataProcessor([1, 2, 3, 4, 5])
+processed = processor.process_data([1, 2, 3, 4, 5])
+
+# More examples to show different decoration types
+numbers = [1, 2, 3, 4, 5]
+squared_numbers = [square(x) for x in numbers]
+doubled_numbers = [double(x) for x in numbers]
+
+# Demonstration of various code patterns
+for i in range(10):
+    print(f"Processing item {i}")
+    if i % 2 == 0:
+        print("Even number")
+    else:
+        print("Odd number")
+
+# Final section for cursor jump demonstration
+final_result = sum(squared_numbers) + sum(doubled_numbers)
+print(f"Final calculation result: {final_result}")
+
+# End of file with trailing content for decoration positioning`;
 
 // Create decorations showcase plugin
 const decorationsPlugin = ViewPlugin.fromClass(
@@ -83,26 +146,58 @@ const decorationsPlugin = ViewPlugin.fromClass(
 			const startOf = (match: string) =>
 				view.state.doc.toString().indexOf(match);
 
-			const ghostPos = endOf("sum two numbers");
-			const deletePos = startOf("process_data");
-			const deleteCount = 8; // "process_"
-			const modifyPos = startOf("calculate_sum");
-			const modifyCount = 13; // "calculate_sum"
-
 			const operations: DiffOperation[] = [
-				{ type: "add", text: " efficiently", position: ghostPos },
-				{ type: "remove", position: deletePos, count: deleteCount },
+				// Ghost text suggestion after comment
+				{ type: "add", text: " and handle edge cases", position: endOf("sum two numbers") },
+				
+				// Remove suggestion on function name
+				{ type: "remove", position: startOf("process_data"), count: 8 }, // "process_"
+				
+				// Modify suggestion - rename function
 				{
 					type: "modify",
-					position: modifyPos,
+					position: startOf("calculate_sum"),
 					insertText: "compute_total",
-					removeCount: modifyCount,
+					removeCount: 13, // "calculate_sum"
 				},
+				
+				// Modify suggestion - fix the square function implementation
 				{
 					type: "modify",
-					position: endOf("result = a * "),
-					insertText: "a\n    return result\nsquare",
-					removeCount: "2\n    return result\ndouble".length,
+					position: startOf("result = x * 2"),
+					insertText: "result = x * x  # Actually square the number",
+					removeCount: 14, // "result = x * 2"
+				},
+				
+				// Ghost text for adding docstring
+				{ type: "add", text: '\n    """Calculate fibonacci number recursively."""', position: endOf("def fibonacci(n):") },
+				
+				// Remove suggestion for redundant validation
+				{ type: "remove", position: startOf("def validate_input"), count: endOf("return True\n") - startOf("def validate_input") },
+				
+				// Modify suggestion - improve string reversal
+				{
+					type: "modify",
+					position: startOf("return text[::-1]"),
+					insertText: "return ''.join(reversed(text))  # More explicit reversal",
+					removeCount: 17, // "return text[::-1]"
+				},
+				
+				// Ghost text for error handling
+				{ type: "add", text: "\n        # TODO: Add error handling for file not found", position: endOf("def read_file(filename):") },
+				
+				// Cursor jump demonstration - where cursor will be after accepting
+				{ type: "cursor", position: endOf("final_result = ") },
+				
+				// Another cursor position for loop variable
+				{ type: "cursor", position: endOf("for i in range(") },
+				
+				// Modify suggestion for better variable naming
+				{
+					type: "modify",
+					position: startOf("squared_numbers"),
+					insertText: "squares",
+					removeCount: 15, // "squared_numbers"
 				},
 			];
 
@@ -124,12 +219,17 @@ const decorationsPlugin = ViewPlugin.fromClass(
 				if (operation.type === "modify") {
 					widgets.push(...createModifyDecoration(operation, onAccept));
 				}
-				// if (operation.type === "cursor") {
-				// 	const ghostWidget = new CurosTextWidget(operation, () => console.log("Ghost text accepted") ?? true);
-				// 	widgets.push(Decoration.widget({ widget: ghostWidget, side: 1 }).range(operation.position));
-				// }
-				// if (operation.type === "none") {
-				// }
+				if (operation.type === "cursor") {
+					const cursorJumpWidget = new CursorJumpWidget();
+					widgets.push(
+						Decoration.widget({ widget: cursorJumpWidget, side: 1 }).range(
+							operation.position,
+						),
+					);
+				}
+				if (operation.type === "none") {
+					// Do nothing
+				}
 			}
 
 			// Accept indicator at the end
@@ -181,14 +281,14 @@ const decorationsPlugin = ViewPlugin.fromClass(
 		parent: document.querySelector("#editor") ?? undefined,
 	});
 
-	// Next-edit-predication
-	const nextEditPredicationEditor = new EditorView({
+	// Next-edit-prediction
+	const nextEditPredictionEditor = new EditorView({
 		doc: doc,
 		extensions: [
 			basicSetup,
 			python(),
 			nextEditPrediction({
-				fetchFn: PredicationBackend.oxen({
+				fetchFn: PredictionBackend.oxen({
 					model: "oxen:ox-cold-olive-fox",
 					baseUrl: "https://hub.oxen.ai/api/chat",
 					headers: {
@@ -198,8 +298,7 @@ const decorationsPlugin = ViewPlugin.fromClass(
 			}),
 			tooltips(),
 		],
-		parent:
-			document.querySelector("#next-edit-predication-editor") ?? undefined,
+		parent: document.querySelector("#next-edit-prediction-editor") ?? undefined,
 	});
 
 	// Decorations showcase
@@ -209,5 +308,5 @@ const decorationsPlugin = ViewPlugin.fromClass(
 		parent: document.querySelector("#decorations-demo") ?? undefined,
 	});
 
-	return { editor, nextEditPredicationEditor, decorationsEditor };
+	return { editor, nextEditPredictionEditor, decorationsEditor };
 })();

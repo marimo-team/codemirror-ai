@@ -1,14 +1,15 @@
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
-import type { DiffOperation } from "../next-edit-predication/diff.js";
-import { createSuggestionDecorations } from "../next-edit-predication/extension.js";
-import { insertDiffText } from "../next-edit-predication/utils.js";
+import type { DiffOperation } from "../next-edit-prediction/diff.js";
+import { createSuggestionDecorations } from "../next-edit-prediction/extension.js";
+import { insertDiffText } from "../next-edit-prediction/utils.js";
 
 describe("insertDiffText with DiffOperation", () => {
 	const createState = (doc: string, cursor?: number) => {
 		return EditorState.create({
 			doc,
-			selection: cursor !== undefined ? EditorSelection.cursor(cursor) : undefined,
+			selection:
+				cursor !== undefined ? EditorSelection.cursor(cursor) : undefined,
 		});
 	};
 
@@ -21,7 +22,11 @@ describe("insertDiffText with DiffOperation", () => {
 				text: " beautiful",
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 15 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 15,
+			});
 
 			expect(transaction.changes).toMatchInlineSnapshot(`
 				{
@@ -47,7 +52,11 @@ describe("insertDiffText with DiffOperation", () => {
 				text: "hello ",
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 6 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 6,
+			});
 
 			expect(transaction.changes).toMatchInlineSnapshot(`
 				{
@@ -72,7 +81,11 @@ describe("insertDiffText with DiffOperation", () => {
 				text: " world",
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 11 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 11,
+			});
 
 			expect(transaction.changes).toMatchInlineSnapshot(`
 				{
@@ -97,7 +110,11 @@ describe("insertDiffText with DiffOperation", () => {
 				text: "",
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 5 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 5,
+			});
 
 			expect(transaction.changes).toMatchInlineSnapshot(`
 				{
@@ -124,7 +141,11 @@ describe("insertDiffText with DiffOperation", () => {
 				count: 10,
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 5 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 5,
+			});
 
 			expect(transaction.changes).toMatchInlineSnapshot(`
 				{
@@ -149,7 +170,11 @@ describe("insertDiffText with DiffOperation", () => {
 				count: 6,
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 0 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 0,
+			});
 
 			expect(transaction.changes).toMatchInlineSnapshot(`
 				{
@@ -174,7 +199,11 @@ describe("insertDiffText with DiffOperation", () => {
 				count: 6,
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 5 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 5,
+			});
 
 			expect(transaction.changes).toMatchInlineSnapshot(`
 				{
@@ -199,7 +228,11 @@ describe("insertDiffText with DiffOperation", () => {
 				count: 0,
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 5 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 5,
+			});
 
 			expect(transaction.changes).toMatchInlineSnapshot(`
 				{
@@ -227,7 +260,11 @@ describe("insertDiffText with DiffOperation", () => {
 				removeCount: 3,
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 9 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 9,
+			});
 
 			expect(transaction.changes).toMatchInlineSnapshot(`
 				{
@@ -253,7 +290,11 @@ describe("insertDiffText with DiffOperation", () => {
 				removeCount: 12,
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 16 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 16,
+			});
 
 			expect(transaction.changes).toMatchInlineSnapshot(`
 				{
@@ -279,7 +320,11 @@ describe("insertDiffText with DiffOperation", () => {
 				removeCount: 2,
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 17 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 17,
+			});
 
 			expect(transaction.changes).toMatchInlineSnapshot(`
 				{
@@ -305,7 +350,11 @@ describe("insertDiffText with DiffOperation", () => {
 				position: 5,
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 5 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 5,
+			});
 
 			expect(transaction.changes).toBeUndefined();
 			expect(transaction.selection).toMatchInlineSnapshot(`
@@ -324,7 +373,11 @@ describe("insertDiffText with DiffOperation", () => {
 				position: 11,
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 11 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 11,
+			});
 
 			expect(transaction.changes).toBeUndefined();
 			expect(transaction.selection).toMatchInlineSnapshot(`
@@ -343,7 +396,11 @@ describe("insertDiffText with DiffOperation", () => {
 				type: "none",
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 7 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 7,
+			});
 
 			expect(transaction.changes).toBeUndefined();
 			expect(transaction.selection).toMatchInlineSnapshot(`
@@ -360,7 +417,11 @@ describe("insertDiffText with DiffOperation", () => {
 				type: "none",
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: null });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: null,
+			});
 
 			expect(transaction.changes).toBeUndefined();
 			expect(transaction.selection).toMatchInlineSnapshot(`
@@ -386,7 +447,11 @@ describe("insertDiffText with DiffOperation", () => {
 				text: "Hello",
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 5 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 5,
+			});
 
 			expect(transaction.changes).toMatchInlineSnapshot(`
 				{
@@ -412,7 +477,11 @@ describe("insertDiffText with DiffOperation", () => {
 				text: "insertion",
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 509 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 509,
+			});
 
 			expect(transaction.changes).toMatchInlineSnapshot(`
 				{
@@ -437,7 +506,11 @@ describe("insertDiffText with DiffOperation", () => {
 				text: "  console.log('test');\n",
 			};
 
-			const transaction = insertDiffText({ state, operation, cursorPosition: 40 });
+			const transaction = insertDiffText({
+				state,
+				operation,
+				cursorPosition: 40,
+			});
 
 			expect(transaction.changes).toMatchInlineSnapshot(`
 				{

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanPrediction } from "../next-edit-predication/backend.js";
+import { cleanPrediction } from "../next-edit-prediction/backend.js";
 
 describe("cleanPrediction", () => {
 	it("should remove editable region start and end markers", () => {

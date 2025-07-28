@@ -83,7 +83,7 @@ ${opts.prefix}<|user_cursor_is_here|>${opts.suffix}
 `;
 }
 
-const oxen = (opts: PredicationBackendOptions): NextEditPredictor => {
+const oxen = (opts: PredictionBackendOptions): NextEditPredictor => {
 	const {
 		model,
 		baseUrl,
@@ -158,7 +158,7 @@ const oxen = (opts: PredicationBackendOptions): NextEditPredictor => {
 	};
 };
 
-interface PredicationBackendOptions {
+interface PredictionBackendOptions {
 	model: string;
 	baseUrl: string;
 	headers?: Record<string, string>;
@@ -166,6 +166,6 @@ interface PredicationBackendOptions {
 	templater?: Templater;
 }
 
-export const PredicationBackend = {
+export const PredictionBackend = {
 	oxen: oxen,
 };

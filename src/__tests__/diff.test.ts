@@ -1,14 +1,14 @@
 import { Text } from "@codemirror/state";
 import { type Change, diffChars } from "diff";
 import { describe, expect, it } from "vitest";
-import { findLargestDiffBound } from "../next-edit-predication/diff";
+import { findLargestDiffBound } from "../next-edit-prediction/diff";
 import {
 	applyDiffOperation,
 	type DiffOperationOf,
 	type DiffResult,
 	type DiffText,
 	extractDiffOperation,
-} from "../next-edit-predication/diff.js";
+} from "../next-edit-prediction/diff.js";
 import { invariant } from "../utils.js";
 
 const cursorMarker = "▲";
