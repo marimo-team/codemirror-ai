@@ -1,4 +1,5 @@
 import type { EditorState } from "@codemirror/state";
+import { debug } from "./debug.js";
 import {
 	CURSOR_MARKER,
 	type DiffSuggestion,
@@ -145,10 +146,10 @@ const oxen = (opts: PredictionBackendOptions): NextEditPredictor => {
 
 			// Remove special tokens and clean up the prediction
 			const { cleaned, intent } = cleanPrediction(prediction);
-			console.log("Prompt", prompt);
-			console.log("Prediction", prediction);
-			console.log("Cleaned", cleaned);
-			console.log("Intent", intent);
+			debug("Prompt", prompt);
+			debug("Prediction", prediction);
+			debug("Cleaned", cleaned);
+			debug("Intent", intent);
 
 			// Create a diff suggestion
 			return {
