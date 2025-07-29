@@ -6,8 +6,10 @@ describe("index.ts exports", () => {
     const sortedExports = Object.keys(exports).sort();
     expect(sortedExports).toMatchInlineSnapshot(`
       [
+        "PredictionBackend",
         "acceptAiEdit",
         "acceptInlineCompletion",
+        "acceptNepSuggestion",
         "aiExtension",
         "aiTheme",
         "closeAiEditInput",
@@ -22,10 +24,12 @@ describe("index.ts exports", () => {
         "lineShiftListener",
         "loadingState",
         "newCodeDecoration",
+        "nextEditPrediction",
         "oldCodeDecoration",
         "optionsFacet",
         "rejectAiEdit",
         "rejectInlineCompletion",
+        "rejectNepSuggestion",
         "setInputFocus",
         "setInputValue",
         "setLoading",
