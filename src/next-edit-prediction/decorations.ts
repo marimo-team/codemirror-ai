@@ -35,7 +35,7 @@ export class GhostTextWidget extends WidgetType {
 				padding: 1px 2px;
 				margin-right: 1px;
 		`;
-		span.textContent = " efficiently";
+		span.textContent = this.operation.text;
 		container.appendChild(span);
 
 		container.onclick = (e) => this.accept(e, view);
