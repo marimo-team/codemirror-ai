@@ -32,8 +32,7 @@ export class GhostTextWidget extends WidgetType {
       border-radius: 2px;
       padding: 1px 2px;
       margin-right: 1px;
-    `;
-    console.warn("thing", `'${this.operation.text}'`);
+    `;  
     span.textContent = this.operation.text;
 
     span.onclick = (e) => this.accept(e, view);
