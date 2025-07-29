@@ -1,4 +1,5 @@
 import type { EditorState } from "@codemirror/state";
+import { LRUCache } from "../utils/lru.js";
 import { debug } from "./debug.js";
 import { CURSOR_MARKER, type DiffSuggestion, type NextEditPredictor } from "./types.js";
 
@@ -174,5 +175,32 @@ interface PredictionBackendOptions {
 }
 
 export const PredictionBackend = {
+  /**
+   * A backend that works well with http://oxen.ai.
+   */
   oxen: oxen,
+  /**
+   * Wrap a delegate predictor with a cache.
+   * The cache is keyed by cursor position and text.
+   *
+   * @param delegate - The predictor to wrap.
+   * @param maxSize - The maximum number of predictions to cache.
+   * @returns A new predictor that caches predictions.
+   */
+  cached: (delegate: NextEditPredictor, maxSize: number = 20): NextEditPredictor => {
+    const cache = new LRUCache<string, DiffSuggestion>(maxSize);
+    return async (state: EditorState): Promise<DiffSuggestion> => {
+      const { from, to } = state.selection.main;
+      const text = state.doc.toString();
+      // key by cursor position and text
+      const key = `${from}::${to}::${text}`;
+      const cached = cache.get(key);
+      if (cached) {
+        return cached;
+      }
+      const suggestion = await delegate(state);
+      cache.set(key, suggestion);
+      return suggestion;
+    };
+  },
 };

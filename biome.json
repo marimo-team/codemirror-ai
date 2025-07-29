@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/package.json"],
+    "includes": ["src/**", "demo/**"],
     "ignoreUnknown": true
   },
   "formatter": {
@@ -24,7 +24,7 @@
         "useConst": "error"
       },
       "suspicious": {
-        "noConsole": "warn"
+        "noConsole": "off"
       },
       "correctness": {
         "noUnusedVariables": "error",

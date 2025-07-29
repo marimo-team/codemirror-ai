@@ -190,36 +190,36 @@ describe("extractDiffOperation - snapshot tests", () => {
   it("should handle simple text addition", () => {
     const result = diffTexts(`def hello▲():`, `def hello_world▲():`);
     expect(result).toMatchInlineSnapshot(`
-			"[add]
+      "[add]
 
-			def hello_world():
-			         ++++++^
-			"
-		`);
+      def hello_world():
+               ++++++^
+      "
+    `);
   });
 
   it("should handle simple text removal", () => {
     const result = diffTexts(`def hello_world▲():`, `def hello▲():`);
     expect(result).toMatchInlineSnapshot(`
-			"[remove]
+      "[remove]
 
-			def hello_world():
-			         ~~~~~~^
-			"
-		`);
+      def hello_world():
+               ~~~~~~^
+      "
+    `);
   });
 
   it("should handle text replacement", () => {
     const result = diffTexts(`print("old_value"▲)`, `print("new_value"▲)`);
     expect(result).toMatchInlineSnapshot(`
-			"[modify]
+      "[modify]
 
-			(-): print("old_value")
-			            ~~~       ^
-			(+): print("new_value")
-			            +++       ^
-			"
-		`);
+      (-): print("old_value")
+                  ~~~       ^
+      (+): print("new_value")
+                  +++       ^
+      "
+    `);
   });
 
   it("should handle cursor at beginning", () => {
@@ -230,27 +230,27 @@ describe("extractDiffOperation - snapshot tests", () => {
   it("should handle multiline changes", () => {
     const result = diffTexts(`def test():▲\n    pass`, `def test():\\n    x = 42\\n    print(x)▲`);
     expect(result).toMatchInlineSnapshot(`
-			"[modify]
+      "[modify]
 
-			(-): def test():
+      (-): def test():
 
-			(+): def test():\\n    x = 42\\n    print(x)
-			                ++++++++++++++++++++++++++
-			"
-		`);
+      (+): def test():\\n    x = 42\\n    print(x)
+                      ++++++++++++++++++++++++++
+      "
+    `);
   });
 
   it("should handle complex variable replacement", () => {
     const result = diffTexts(`old_var = ▲42`, `new_variable = ▲"hello"`);
     expect(result).toMatchInlineSnapshot(`
-			"[modify]
+      "[modify]
 
-			(-): old_var = 42
-			     ~~~~~~~~~ ^
-			(+): new_variable = "hello"
-			     +++++++++++++++^+++
-			"
-		`);
+      (-): old_var = 42
+           ~~~~~~~~~ ^
+      (+): new_variable = "hello"
+           +++++++++++++++^+++
+      "
+    `);
   });
 
   it("should handle no operation when texts are identical without cursor", () => {
@@ -261,34 +261,34 @@ describe("extractDiffOperation - snapshot tests", () => {
   it("should handle cursor position changes only", () => {
     const result = diffTexts(`print▲("hello")`, `print(▲"hello")`);
     expect(result).toMatchInlineSnapshot(`
-			"[cursor]
+      "[cursor]
 
-			print("hello")
-			      ^
-			"
-		`);
+      print("hello")
+            ^
+      "
+    `);
   });
 
   it("should handle function parameter addition", () => {
     const result = diffTexts(`def calculate(a▲):`, `def calculate(a, b=10▲):`);
     expect(result).toMatchInlineSnapshot(`
-			"[add]
+      "[add]
 
-			def calculate(a, b=10):
-			               ++++++^
-			"
-		`);
+      def calculate(a, b=10):
+                     ++++++^
+      "
+    `);
   });
 
   it("should handle special characters in diff", () => {
     const result = diffTexts(`data = {▲}`, `data = {"key": "value", "num": 42▲}`);
     expect(result).toMatchInlineSnapshot(`
-			"[add]
+      "[add]
 
-			data = {"key": "value", "num": 42}
-			        +++++++++++++++++++++++++^
-			"
-		`);
+      data = {"key": "value", "num": 42}
+              +++++++++++++++++++++++++^
+      "
+    `);
   });
 
   it("should handle unchanged text", () => {
@@ -299,12 +299,12 @@ describe("extractDiffOperation - snapshot tests", () => {
   it("should handle cursor at end", () => {
     const result = diffTexts(`print("hello")▲`, `print("hello")\\nprint("world")▲`);
     expect(result).toMatchInlineSnapshot(`
-			"[add]
+      "[add]
 
-			print("hello")\\nprint("world")
-			              ++++++++++++++++
-			"
-		`);
+      print("hello")\\nprint("world")
+                    ++++++++++++++++
+      "
+    `);
   });
 
   it("should handle empty strings", () => {
@@ -318,33 +318,105 @@ describe("extractDiffOperation - snapshot tests", () => {
       `class MyClass:\\n    def __init__(self):\\n        self.value = 0▲\\n    return 42`,
     );
     expect(result).toMatchInlineSnapshot(`
-			"[add]
+      "[add]
 
-			class MyClass:\\n    def __init__(self):\\n        self.value = 0\\n    return 42
-			                    +++++++++++++++++++++++++++++++++++++++++++^+++++
-			"
-		`);
+      class MyClass:\\n    def __init__(self):\\n        self.value = 0\\n    return 42
+                          +++++++++++++++++++++++++++++++++++++++++++^+++++
+      "
+    `);
   });
 
   it("should handle list comprehension changes", () => {
     const result = diffTexts(`numbers = [▲]`, `numbers = [x**2 for x in range(10)▲]`);
     expect(result).toMatchInlineSnapshot(`
-			"[add]
+      "[add]
 
-			numbers = [x**2 for x in range(10)]
-			           +++++++++++++++++++++++^
-			"
-		`);
+      numbers = [x**2 for x in range(10)]
+                 +++++++++++++++++++++++^
+      "
+    `);
   });
 
   it("should handle import statement modification", () => {
     const result = diffTexts(`from os import ▲path`, `from os import path, environ▲`);
     expect(result).toMatchInlineSnapshot(`
-			"[add]
+      "[add]
 
-			from os import path, environ
-			                   +++++++++
-			"
-		`);
+      from os import path, environ
+                         +++++++++
+      "
+    `);
+  });
+
+  it("should not include newline characters in the diff", () => {
+    const before = `
+def calculate_sum(a, b):
+    # This function will sum two numbers
+    return a + b
+`;
+
+    const after = `
+def calculate_sum(a, b):
+    # This function will sum two numbers and return the result${cursorMarker}
+    return a + b
+`;
+
+    const result = diffTexts(before, after);
+    expect(
+      extractDiffOperation({ oldText: before, newText: after }, cursorMarker).operation,
+    ).toMatchInlineSnapshot(`
+      {
+        "position": 66,
+        "text": " and return the result",
+        "type": "add",
+      }
+    `);
+    expect(result).toMatchInlineSnapshot(`
+      "[add]
+
+
+      def calculate_sum(a, b):
+          # This function will sum two numbers and return the result
+                                              ++++++++++++++++++++++
+      "
+    `);
+  });
+
+  it("should handle newline at the end of the text and spaces", () => {
+    const before = `
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+`;
+
+    const after = `
+def fibonacci(n):
+    # This function will calculate the fibonacci number${cursorMarker}
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+`;
+
+    const operation = extractDiffOperation({ oldText: before, newText: after }, cursorMarker);
+    if (operation.operation.type === "add") {
+      expect(operation.operation.text.split("\n")).toMatchInlineSnapshot(`
+        [
+          "# This function will calculate the fibonacci number",
+          "    ",
+        ]
+      `);
+    }
+
+    const result = diffTexts(before, after);
+    expect(result).toMatchInlineSnapshot(`
+      "[add]
+
+
+      def fibonacci(n):
+          # This function will calculate the fibonacci number
+          +++++++++++++++++++++++++++++++++++++++++++++++++++
+      "
+    `);
   });
 });

@@ -2,6 +2,7 @@ import {
   EditorSelection,
   type EditorState,
   Facet,
+  type Range,
   StateEffect,
   StateField,
   type Text,
@@ -57,7 +58,7 @@ const InlineSuggestionEffect = StateEffect.define<{
  */
 function inlineSuggestionDecoration(view: EditorView, prefix: string) {
   const pos = view.state.selection.main.head;
-  const widgets = [];
+  const widgets: Range<Decoration>[] = [];
   const w = Decoration.widget({
     widget: new InlineSuggestionWidget(prefix),
     side: 1,
