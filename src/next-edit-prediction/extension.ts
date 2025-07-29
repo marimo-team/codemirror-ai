@@ -15,13 +15,12 @@ import {
 	type ViewUpdate,
 } from "@codemirror/view";
 import { debouncePromise } from "../utils.js";
-import { debug } from "./debug.js";
 import {
 	AcceptIndicatorWidget,
+	CursorJumpWidget,
 	createModifyDecoration,
 	createRemovalDecoration,
 	GhostTextWidget,
-	CursorJumpWidget,
 } from "./decorations.js";
 import { type DiffOperation, extractDiffOperation } from "./diff.js";
 import { suggestionConfigFacet } from "./state.js";
@@ -124,35 +123,6 @@ export function createSuggestionDecorations(
 	return Decoration.set(decorations);
 }
 
-/**
- * Rendered by `renderNextEditPredictionPlugin`,
- * this creates multiple decoration widgets for the ranges
- * where changes occur in the document.
- */
-function nextEditPredictionDecoration(suggestion: DiffSuggestion) {
-	debug("====old text====");
-	debug(suggestion.oldText);
-	debug("====new text====");
-	debug(suggestion.newText);
-
-	if (!suggestion.newText.includes(CURSOR_MARKER)) {
-		debug("No cursor marker found, skipping ghost text");
-		return Decoration.none;
-	}
-
-	const { operation } = extractDiffOperation(suggestion, CURSOR_MARKER);
-
-	debug("diff:", operation);
-
-	// Only show ghost text if there's content to show
-	if (operation.type === "add") {
-		debug("No ghost text needed - no diff parts to show");
-		return Decoration.none;
-	}
-
-	return createSuggestionDecorations(operation);
-}
-
 // PLUGINS
 
 /**
@@ -195,7 +165,7 @@ export const fetchSuggestion = ViewPlugin.fromClass(
 			}
 
 			if (!config.fetchFn) {
-				// biome-ignore lint/suspicious/noConsole: <explanation>
+				// biome-ignore lint/suspicious/noConsole: error
 				console.error(
 					"Unexpected issue in codemirror-copilot: fetchFn was not configured",
 				);
@@ -228,7 +198,8 @@ const renderNextEditPredictionPlugin = ViewPlugin.fromClass(
 				return;
 			}
 
-			this.decorations = nextEditPredictionDecoration(suggestion);
+			const { operation } = extractDiffOperation(suggestion, CURSOR_MARKER);
+			this.decorations = createSuggestionDecorations(operation);
 		}
 	},
 	{
