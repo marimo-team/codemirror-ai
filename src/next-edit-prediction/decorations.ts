@@ -20,26 +20,24 @@ export class GhostTextWidget extends WidgetType {
   }
 
   toDOM(view: EditorView) {
-    const container = document.createElement("span");
-    container.className = "cm-ghost-text-container";
-    container.style.cssText = `cursor: pointer; display: inline;`;
-
     const span = document.createElement("span");
-    span.className = `cm-ghost-text cm-ghost-add`;
+    span.className = "cm-ghost-text cm-ghost-add";
     span.style.cssText = `
-				color: #22863a;
-				opacity: 0.7;
-				font-style: italic;
-				background: rgba(34, 134, 58, 0.1);
-				border-radius: 2px;
-				padding: 1px 2px;
-				margin-right: 1px;
-		`;
+      cursor: pointer;
+      display: inline;
+      color: #22863a;
+      opacity: 0.7;
+      font-style: italic;
+      background: rgba(34, 134, 58, 0.1);
+      border-radius: 2px;
+      padding: 1px 2px;
+      margin-right: 1px;
+    `;
+    console.warn("thing", `'${this.operation.text}'`);
     span.textContent = this.operation.text;
-    container.appendChild(span);
 
-    container.onclick = (e) => this.accept(e, view);
-    return container;
+    span.onclick = (e) => this.accept(e, view);
+    return span;
   }
 
   accept(e: MouseEvent, view: EditorView) {

@@ -11,8 +11,10 @@ import {
   createRemovalDecoration,
   GhostTextWidget,
 } from "../src/next-edit-prediction/decorations.js";
-import type { DiffOperation } from "../src/next-edit-prediction/diff.js";
+import { type DiffOperation, extractDiffOperation } from "../src/next-edit-prediction/diff.js";
 import { nextEditPrediction } from "../src/next-edit-prediction/extension.js";
+import { CURSOR_MARKER } from "../src/next-edit-prediction/types.js";
+import { insertDiffText } from "../src/next-edit-prediction/utils.js";
 
 const logger = console;
 
@@ -49,6 +51,7 @@ const decorationsDoc = `# AI Code Editor Decorations Demo
 # This file demonstrates different types of code suggestions and decorations
 
 def calculate_sum(a, b):
+    # Docs
     # This function will sum two numbers
     return a + b
 
@@ -56,11 +59,11 @@ class DataProcessor:
     def __init__(self, data):
         self.data = data
         self.results = []
-    
+
     def process_data(self, items):
         # Process each item in the list
         return [item * 2 for item in items]
-    
+
     def validate_input(self, value):
         if value is None:
             raise ValueError("Input cannot be None")
@@ -135,89 +138,103 @@ const decorationsPlugin = ViewPlugin.fromClass(
 
     buildDecorations(view: EditorView) {
       const widgets: Range<Decoration>[] = [];
-      const _doc = view.state.doc;
-      const endOf = (match: string) => view.state.doc.toString().indexOf(match) + match.length;
-      const startOf = (match: string) => view.state.doc.toString().indexOf(match);
+      const docText = view.state.doc.toString();
+
+      const createOperation = (oldText: string, newText: string): DiffOperation => {
+        if (!docText.includes(oldText)) {
+          logger.warn("No old text found, skipping");
+          return { type: "none" };
+        }
+
+        // Create a new document text with the old text replaced by the new text
+
+        const textStart = docText.indexOf(oldText);
+        const textEnd = textStart + oldText.length;
+        const prefix = docText.slice(0, textStart);
+        const suffix = docText.slice(textEnd);
+
+        const newDocText = `${prefix}${newText}${suffix}`;
+        const { operation } = extractDiffOperation(
+          { oldText: docText, newText: newDocText },
+          CURSOR_MARKER,
+        );
+        console.log(operation);
+
+        return operation;
+      };
 
       const operations: DiffOperation[] = [
         // Ghost text suggestion after comment
-        {
-          type: "add",
-          text: " and handle edge cases",
-          position: endOf("sum two numbers"),
-        },
+        createOperation("sum two numbers", `sum two numbers and handle edge cases${CURSOR_MARKER}`),
 
         // Remove suggestion on function name
-        { type: "remove", position: startOf("process_data"), count: 8 }, // "process_"
+        createOperation("process_data", `process_${CURSOR_MARKER}`),
 
         // Modify suggestion - rename function
-        {
-          type: "modify",
-          position: startOf("calculate_sum"),
-          insertText: "compute_total",
-          removeCount: 13, // "calculate_sum"
-        },
+        createOperation("calculate_", `compute_${CURSOR_MARKER}`),
 
         // Modify suggestion - fix the square function implementation
-        {
-          type: "modify",
-          position: startOf("result = x * 2"),
-          insertText: "result = x * x  # Actually square the number",
-          removeCount: 14, // "result = x * 2"
-        },
+        createOperation(
+          "result = x * 2",
+          `result = x * x  # Actually square the number${CURSOR_MARKER}`,
+        ),
 
         // Ghost text for adding docstring
-        {
-          type: "add",
-          text: '\n    """Calculate fibonacci number recursively."""',
-          position: endOf("def fibonacci(n):"),
-        },
+        createOperation(
+          "def fibonacci(n):",
+          `def fibonacci(n):\n    """Calculate fibonacci number recursively.${CURSOR_MARKER}"""`,
+        ),
 
         // Remove suggestion for redundant validation
-        {
-          type: "remove",
-          position: startOf("def validate_input"),
-          count: endOf("return True\n") - startOf("def validate_input"),
-        },
+        createOperation(
+          `def validate_input(self, value):
+        if value is None:
+            raise ValueError("Input cannot be None")`,
+          `def validate_input(self, value):${CURSOR_MARKER}`,
+        ),
 
         // Modify suggestion - improve string reversal
-        {
-          type: "modify",
-          position: startOf("return text[::-1]"),
-          insertText: "return ''.join(reversed(text))  # More explicit reversal",
-          removeCount: 17, // "return text[::-1]"
-        },
+        createOperation(
+          "return text[::-1]",
+          "return ''.join(reversed(text))  # More explicit reversal",
+        ),
 
         // Ghost text for error handling
-        {
-          type: "add",
-          text: "\n        # TODO: Add error handling for file not found",
-          position: endOf("def read_file(filename):"),
-        },
+        createOperation(
+          "def read_file(filename):",
+          `def read_file(filename):\n    # TODO: Add error handling for file not found${CURSOR_MARKER}`,
+        ),
 
         // Cursor jump demonstration - where cursor will be after accepting
-        { type: "cursor", position: endOf("final_result = ") },
+        createOperation("final_result = ", `final_result = ${CURSOR_MARKER}`),
 
         // Another cursor position for loop variable
-        { type: "cursor", position: endOf("for i in range(") },
+        createOperation("for i in range(", `for i in range(${CURSOR_MARKER}`),
 
-        // Modify suggestion for better variable naming
-        {
-          type: "modify",
-          position: startOf("squared_numbers"),
-          insertText: "squares",
-          removeCount: 15, // "squared_numbers"
-        },
+        // Modify suggestion for better variable naming (deletion)
+        createOperation("squared_numbers", `squares${CURSOR_MARKER}`),
       ];
 
-      const onAccept = () => console.log("Operation accepted") ?? true;
-      const _onReject = () => console.log("Operation rejected") ?? true;
-
       for (const operation of operations) {
+        const onAccept = () => {
+          const transaction = insertDiffText({
+            state: view.state,
+            operation,
+            cursorPosition: null,
+          });
+          const newState = view.state.update(transaction);
+          console.log(newState.newDoc.toString());
+          return true;
+        };
+        const _onReject = () => {
+          console.log("Rejected");
+        };
+
         if (operation.type === "add") {
-          const ghostWidget = new GhostTextWidget(operation, onAccept);
           widgets.push(
-            Decoration.widget({ widget: ghostWidget, side: 1 }).range(operation.position),
+            Decoration.widget({ widget: new GhostTextWidget(operation, onAccept), side: 1 }).range(
+              operation.position,
+            ),
           );
         }
         if (operation.type === "remove") {
