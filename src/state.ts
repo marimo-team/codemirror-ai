@@ -1,4 +1,4 @@
-import { Facet, StateEffect, StateField, combineConfig } from "@codemirror/state";
+import { combineConfig, Facet, StateEffect, StateField } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
 export interface CreateEditOpts {

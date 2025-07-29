@@ -51,7 +51,7 @@ export function aiExtension(options: AiOptions): Extension[] {
     throw new Error("prompt function is required");
   }
 
-  const keymapConfig = {...defaultKeymaps, ...options.keymaps}
+  const keymapConfig = { ...defaultKeymaps, ...options.keymaps };
 
   return [
     optionsFacet.of(options),

@@ -1,21 +1,21 @@
 import {
   EditorSelection,
   type EditorState,
+  Facet,
   StateEffect,
   StateField,
   type Text,
   type TransactionSpec,
 } from "@codemirror/state";
-import { Facet } from "@codemirror/state";
 import {
   type Command,
   Decoration,
   type DecorationSet,
   type EditorView,
+  keymap,
   ViewPlugin,
   type ViewUpdate,
   WidgetType,
-  keymap,
 } from "@codemirror/view";
 import { debouncePromise } from "./utils.js";
 
