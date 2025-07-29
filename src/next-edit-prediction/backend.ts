@@ -1,4 +1,5 @@
 import type { EditorState } from "@codemirror/state";
+import { debug } from "./debug.js";
 import {
 	CURSOR_MARKER,
 	type DiffSuggestion,
@@ -64,10 +65,23 @@ async function fetchPrediction(opts: {
 	}
 }
 
-export function cleanPrediction(prediction: string): string {
-	return prediction
-		.replace(/<\|editable_region_start\|>\n?|<\|editable_region_end\|>\n?/g, "")
+export function cleanPrediction(prediction: string): {
+	cleaned: string;
+	intent: string;
+} {
+	// Extract intent from <|INTENT|> tags
+	const intentMatch = prediction.match(
+		/<\|INTENT\|>([\s\S]*?)<\|EDIT_START\|>/,
+	);
+	const intent = intentMatch?.[1]?.trim() ?? "";
+
+	// Remove all special tokens and clean up the prediction
+	const cleaned = prediction
+		.replace(/<\|INTENT\|>[\s\S]*?<\|EDIT_START\|>/g, "")
+		.replace(/<\|EDIT_START\|>\n?|<\|EDIT_END\|>\n?/g, "")
 		.trim();
+
+	return { cleaned, intent };
 }
 
 function defaultTemplate(opts: {
@@ -75,11 +89,12 @@ function defaultTemplate(opts: {
 	suffix: string;
 	context: Record<string, string>;
 }) {
-	return `You are a code completion assistant and your task is to analyze user edits and then rewrite the marked region, taking into account the cursor location.
+	return `You are a code completion assistant and your task is to analyze user edits and then rewrite the marked region, taking into account the cursor location. The user intent will sometimes be explicitly given below, in which case you must follow this intent. If it is not present, you must infer the intent before implementing the change.
 
-<|editable_region_start|>
+<|INTENT|>
+<|EDIT_START|>
 ${opts.prefix}<|user_cursor_is_here|>${opts.suffix}
-<|editable_region_end|>
+<|EDIT_END|>
 `;
 }
 
@@ -130,7 +145,11 @@ const oxen = (opts: PredictionBackendOptions): NextEditPredictor => {
 			}
 
 			// Remove special tokens and clean up the prediction
-			const cleaned = cleanPrediction(prediction);
+			const { cleaned, intent } = cleanPrediction(prediction);
+			debug("Prompt", prompt);
+			debug("Prediction", prediction);
+			debug("Cleaned", cleaned);
+			debug("Intent", intent);
 
 			// Create a diff suggestion
 			return {

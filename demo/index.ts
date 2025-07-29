@@ -148,11 +148,15 @@ const decorationsPlugin = ViewPlugin.fromClass(
 
 			const operations: DiffOperation[] = [
 				// Ghost text suggestion after comment
-				{ type: "add", text: " and handle edge cases", position: endOf("sum two numbers") },
-				
+				{
+					type: "add",
+					text: " and handle edge cases",
+					position: endOf("sum two numbers"),
+				},
+
 				// Remove suggestion on function name
 				{ type: "remove", position: startOf("process_data"), count: 8 }, // "process_"
-				
+
 				// Modify suggestion - rename function
 				{
 					type: "modify",
@@ -160,7 +164,7 @@ const decorationsPlugin = ViewPlugin.fromClass(
 					insertText: "compute_total",
 					removeCount: 13, // "calculate_sum"
 				},
-				
+
 				// Modify suggestion - fix the square function implementation
 				{
 					type: "modify",
@@ -168,30 +172,43 @@ const decorationsPlugin = ViewPlugin.fromClass(
 					insertText: "result = x * x  # Actually square the number",
 					removeCount: 14, // "result = x * 2"
 				},
-				
+
 				// Ghost text for adding docstring
-				{ type: "add", text: '\n    """Calculate fibonacci number recursively."""', position: endOf("def fibonacci(n):") },
-				
+				{
+					type: "add",
+					text: '\n    """Calculate fibonacci number recursively."""',
+					position: endOf("def fibonacci(n):"),
+				},
+
 				// Remove suggestion for redundant validation
-				{ type: "remove", position: startOf("def validate_input"), count: endOf("return True\n") - startOf("def validate_input") },
-				
+				{
+					type: "remove",
+					position: startOf("def validate_input"),
+					count: endOf("return True\n") - startOf("def validate_input"),
+				},
+
 				// Modify suggestion - improve string reversal
 				{
 					type: "modify",
 					position: startOf("return text[::-1]"),
-					insertText: "return ''.join(reversed(text))  # More explicit reversal",
+					insertText:
+						"return ''.join(reversed(text))  # More explicit reversal",
 					removeCount: 17, // "return text[::-1]"
 				},
-				
+
 				// Ghost text for error handling
-				{ type: "add", text: "\n        # TODO: Add error handling for file not found", position: endOf("def read_file(filename):") },
-				
+				{
+					type: "add",
+					text: "\n        # TODO: Add error handling for file not found",
+					position: endOf("def read_file(filename):"),
+				},
+
 				// Cursor jump demonstration - where cursor will be after accepting
 				{ type: "cursor", position: endOf("final_result = ") },
-				
+
 				// Another cursor position for loop variable
 				{ type: "cursor", position: endOf("for i in range(") },
-				
+
 				// Modify suggestion for better variable naming
 				{
 					type: "modify",
@@ -289,7 +306,7 @@ const decorationsPlugin = ViewPlugin.fromClass(
 			python(),
 			nextEditPrediction({
 				fetchFn: PredictionBackend.oxen({
-					model: "oxen:ox-cold-olive-fox",
+					model: "oxen:dgonz-crucial-amethyst-cephalopod",
 					baseUrl: "https://hub.oxen.ai/api/chat",
 					headers: {
 						Authorization: `Bearer ${import.meta.env.VITE_API_KEY}`,
