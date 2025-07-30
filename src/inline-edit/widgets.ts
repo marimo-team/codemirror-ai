@@ -1,4 +1,5 @@
 import { type EditorView, WidgetType } from "@codemirror/view";
+import { ce, formatKeymap } from "../utils.js";
 import { acceptAiEdit, rejectAiEdit } from "./commands.js";
 import {
   type CompleteFunction,
@@ -13,7 +14,6 @@ import {
   showCompletion,
   showInput,
 } from "./state.js";
-import { ce, formatKeymap } from "./utils.js";
 
 /**
  * This is the accept / reject UI that shows when you've

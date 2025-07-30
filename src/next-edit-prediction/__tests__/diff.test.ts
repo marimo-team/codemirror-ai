@@ -3,7 +3,7 @@ import {
   type DiffOperationOf,
   type DiffResult,
   extractDiffOperation,
-} from "../next-edit-prediction/diff.js";
+} from "../diff.js";
 
 const cursorMarker = "▲";
 

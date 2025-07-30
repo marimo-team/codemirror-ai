@@ -1,7 +1,7 @@
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { describe, expect, it, vi } from "vitest";
-import { cleanPrediction, PredictionBackend } from "../next-edit-prediction/backend.js";
-import type { DiffSuggestion } from "../next-edit-prediction/types.js";
+import { cleanPrediction, PredictionBackend } from "../backend.js";
+import type { DiffSuggestion } from "../types.js";
 
 describe("cleanPrediction", () => {
   it("should remove EDIT_START and EDIT_END markers", () => {

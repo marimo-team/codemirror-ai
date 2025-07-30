@@ -18,7 +18,7 @@ import {
   type ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
-import { debouncePromise } from "./utils.js";
+import { debouncePromise } from "../utils.js";
 
 // Credit to https://github.com/saminzadeh/codemirror-extension-inline-suggestion
 // This is modified for some additional features:

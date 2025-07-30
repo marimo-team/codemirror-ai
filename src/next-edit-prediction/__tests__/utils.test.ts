@@ -1,8 +1,8 @@
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
-import type { DiffOperation } from "../next-edit-prediction/diff.js";
-import { createSuggestionDecorations } from "../next-edit-prediction/extension.js";
-import { insertDiffText } from "../next-edit-prediction/utils.js";
+import type { DiffOperation } from "../diff.js";
+import { createSuggestionDecorations } from "../extension.js";
+import { insertDiffText } from "../utils.js";
 
 describe("insertDiffText with DiffOperation", () => {
   const createState = (doc: string, cursor?: number) => {
