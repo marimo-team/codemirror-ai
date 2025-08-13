@@ -90,7 +90,7 @@ class InlineSuggestionWidget extends WidgetType {
   }
 }
 
-type InlineFetchFn = (state: EditorState, signal: AbortSignal) => Promise<string>;
+type InlineFetchFn = (state: EditorState, signal: AbortSignal, view: EditorView) => Promise<string>;
 
 // Add these near the top with other types
 type SuggestionEvents = {
@@ -101,7 +101,17 @@ type SuggestionEvents = {
 };
 
 type InlineSuggestionOptions = {
-  fetchFn: (state: EditorState, signal: AbortSignal) => Promise<string>;
+  /**
+   * Function to fetch the suggestion.
+   * @param state - The editor state.
+   * @param signal - The abort signal.
+   * @param view - The editor view.
+   * @returns The suggestion.
+   */
+  fetchFn: InlineFetchFn;
+  /**
+   * @default 500
+   */
   delay?: number;
   /**
    * @default true
@@ -180,7 +190,7 @@ const fetchSuggestion = (fetchFn: InlineFetchFn, options: InlineSuggestionOption
         }
 
         try {
-          const result = await fetchFn(update.state, this.abortController.signal);
+          const result = await fetchFn(update.state, this.abortController.signal, update.view);
           // Only update if not aborted
           if (this.abortController.signal.aborted) {
             return;
@@ -196,7 +206,6 @@ const fetchSuggestion = (fetchFn: InlineFetchFn, options: InlineSuggestionOption
           });
         } catch (err) {
           if (err instanceof Error && err.name !== "AbortError") {
-            // biome-ignore lint/suspicious/noConsole: <explanation>
             console.error("Suggestion fetch error:", err);
           }
         }
@@ -310,7 +319,7 @@ const inlineCompletionKeymap = keymap.of([
 
 // Add config facet to store options
 const inlineCompletionConfig = Facet.define<InlineSuggestionOptions, InlineSuggestionOptions>({
-  // biome-ignore lint/style/noNonNullAssertion: <explanation>
+  // biome-ignore lint/style/noNonNullAssertion: Safe to use non-null assertion as combine ensures at least one value exists
   combine: (v) => v.at(-1)!,
 });
 
