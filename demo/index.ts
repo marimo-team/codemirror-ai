@@ -1,8 +1,8 @@
 import { python } from "@codemirror/lang-python";
-import type { Range } from "@codemirror/state";
-import { Decoration, type DecorationSet, tooltips, ViewPlugin } from "@codemirror/view";
+import { Prec, type Range } from "@codemirror/state";
+import { Decoration, type DecorationSet, keymap, tooltips, ViewPlugin } from "@codemirror/view";
 import { basicSetup, EditorView } from "codemirror";
-import { aiExtension } from "../src/inline-edit.js";
+import { aiExtension } from "../src/inline-edit/inline-edit.js";
 import { PredictionBackend } from "../src/next-edit-prediction/backend.js";
 import {
   AcceptIndicatorWidget,
@@ -15,6 +15,7 @@ import { type DiffOperation, extractDiffOperation } from "../src/next-edit-predi
 import { nextEditPrediction } from "../src/next-edit-prediction/extension.js";
 import { CURSOR_MARKER } from "../src/next-edit-prediction/types.js";
 import { insertDiffText } from "../src/next-edit-prediction/utils.js";
+import { promptHistory, storePrompt } from "../src/prompt-history/extension.js";
 
 const logger = console;
 
@@ -328,5 +329,23 @@ const decorationsPlugin = ViewPlugin.fromClass(
     parent: document.querySelector("#decorations-demo") ?? undefined,
   });
 
-  return { editor, nextEditPredictionEditor, decorationsEditor };
+  // Prompt history
+  const promptHistoryEditor = new EditorView({
+    doc: "",
+    extensions: [
+      basicSetup,
+      Prec.highest(keymap.of([{ key: "Enter", run: storePrompt }])),
+      promptHistory({
+        storage: {
+          load: () => ["git add .", "git commit -m 'Add new feature'", "git push"],
+          save: (prompts) => {
+            console.log("Saving prompts", prompts);
+          },
+        },
+      }),
+    ],
+    parent: document.querySelector("#prompt-history-editor") ?? undefined,
+  });
+
+  return { editor, nextEditPredictionEditor, decorationsEditor, promptHistoryEditor };
 })();

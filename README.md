@@ -18,6 +18,8 @@ pnpm add @marimo-team/codemirror-ai
 
 ## Usage
 
+### AI-Assisted Editing
+
 ```ts
 import { aiExtension } from '@marimo-team/codemirror-ai';
 import { EditorView } from '@codemirror/view';
@@ -49,6 +51,58 @@ const view = new EditorView({
         acceptEdit: 'Mod-y', // Accept suggestion
         rejectEdit: 'Mod-u'    // Reject suggestion
       }
+    })
+  ],
+  parent: document.querySelector('#editor')
+});
+```
+
+### Next Edit Prediction (Autocomplete)
+
+```ts
+import { nextEditPrediction } from '@marimo-team/codemirror-ai';
+import { EditorView } from '@codemirror/view';
+
+const view = new EditorView({
+  extensions: [
+    nextEditPrediction({
+      // Required: Function to predict next edits
+      fetchFn: async (state) => {
+        // Return diff suggestion based on current editor state
+        return { newText: 'suggested code', cursorOffset: 0 };
+      },
+
+      // Optional configuration
+      delay: 500,              // Debounce delay in ms
+      acceptOnClick: true,     // Accept suggestion on click
+      defaultKeymap: true,     // Include Tab/Escape keybindings
+      showAcceptReject: true,  // Show accept/reject buttons
+
+      // Optional callback for tracking edits
+      onEdit: (oldDoc, newDoc, from, to, insert) => {
+        console.log('Edit tracked:', { oldDoc, newDoc, from, to, insert });
+      }
+    })
+  ],
+  parent: document.querySelector('#editor')
+});
+```
+
+### Prompt History
+
+```ts
+import { promptHistory } from '@marimo-team/codemirror-ai';
+import { EditorView } from '@codemirror/view';
+
+const view = new EditorView({
+  extensions: [
+    promptHistory({
+      // Optional storage callbacks
+      storage: {
+        load: () => JSON.parse(localStorage.getItem('prompts') || '[]'),
+        save: (prompts) => localStorage.setItem('prompts', JSON.stringify(prompts))
+      },
+      defaultKeymap: true // Use ArrowUp/ArrowDown for navigation
     })
   ],
   parent: document.querySelector('#editor')

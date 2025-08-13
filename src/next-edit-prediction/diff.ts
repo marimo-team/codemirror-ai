@@ -115,11 +115,13 @@ export function extractDiffOperation(
     if (!shouldUseChars && wordChanges.length <= 2) {
       const charDiffs = diffChars(oldTextClean, newTextClean);
       const charChanges = charDiffs.filter((d) => d.added || d.removed);
-      
+
       // If character diff has fewer changes and the word diff has additions with newlines,
       // prefer character diff as it's likely more accurate
-      if (charChanges.length <= wordChanges.length && 
-          wordChanges.some(change => change.added && change.value.includes("\n"))) {
+      if (
+        charChanges.length <= wordChanges.length &&
+        wordChanges.some((change) => change.added && change.value.includes("\n"))
+      ) {
         diffs = charDiffs;
       }
     } else if (shouldUseChars) {
