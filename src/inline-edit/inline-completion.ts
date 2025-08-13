@@ -319,7 +319,7 @@ const inlineCompletionKeymap = keymap.of([
 
 // Add config facet to store options
 const inlineCompletionConfig = Facet.define<InlineSuggestionOptions, InlineSuggestionOptions>({
-  // biome-ignore lint/style/noNonNullAssertion: its ok
+  // biome-ignore lint/style/noNonNullAssertion: Safe to use non-null assertion as combine ensures at least one value exists
   combine: (v) => v.at(-1)!,
 });
 
