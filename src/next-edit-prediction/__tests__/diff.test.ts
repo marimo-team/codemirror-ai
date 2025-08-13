@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  type DiffOperationOf,
-  type DiffResult,
-  extractDiffOperation,
-} from "../diff.js";
+import { type DiffOperationOf, type DiffResult, extractDiffOperation } from "../diff.js";
 
 const cursorMarker = "▲";
 

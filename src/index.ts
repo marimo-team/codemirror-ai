@@ -10,3 +10,4 @@ export {
   nextEditPrediction,
   rejectNepSuggestion,
 } from "./next-edit-prediction/extension.js";
+export * from "./prompt-history/extension.js";
