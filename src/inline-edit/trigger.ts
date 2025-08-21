@@ -9,6 +9,7 @@ import { defaultKeymaps, inputState, optionsFacet } from "./state.js";
  */
 interface TriggerOptions {
   render: (view: EditorView) => HTMLElement;
+  hideOnBlur: boolean;
 }
 
 /**
@@ -28,6 +29,10 @@ export function defaultTriggerRenderer(view: EditorView) {
   // behavior (dragging to cancel the click)
   tooltip.querySelector("span")?.addEventListener("mousedown", (evt) => {
     evt.stopPropagation();
+    // Only prevent default for left mouse button to avoid interfering with selection/drag
+    if (evt.button === 0) {
+      evt.preventDefault();
+    }
   });
   tooltip.querySelector("span")?.addEventListener("click", (evt) => {
     evt.preventDefault();
@@ -36,10 +41,11 @@ export function defaultTriggerRenderer(view: EditorView) {
   return tooltip;
 }
 
-export const triggerOptions = Facet.define<TriggerOptions, TriggerOptions>({
+export const triggerOptions = Facet.define<Partial<TriggerOptions>, TriggerOptions>({
   combine(value) {
     return combineConfig(value, {
       render: defaultTriggerRenderer,
+      hideOnBlur: false,
     });
   },
 });
@@ -83,7 +89,7 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
     constructor(public view: EditorView) {
       const options = view.state.facet(triggerOptions);
       this.suppress = false;
-      
+
       document.addEventListener("mousedown", this.mousedown);
       document.addEventListener("mouseup", this.mouseup);
       view.scrollDOM.addEventListener("scroll", this.scroll);
@@ -108,6 +114,13 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
         this.dom.style.display = "none";
         return;
       }
+      const options = view.state.facet(triggerOptions);
+      // Hide tooltip if hideOnBlur is enabled and editor doesn't have focus
+      if (options.hideOnBlur && !view.hasFocus) {
+        this.dom.style.display = "none";
+        this.dom.setAttribute('aria-hidden', "true");
+        return;
+      }
       view.requestMeasure({
         read: this.#onRead,
       });
@@ -127,29 +140,30 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
         // Check if the selection is visible in the viewport
         const scrollRect = view.dom.getBoundingClientRect();
         const domRect = view.dom.parentElement?.getBoundingClientRect();
-        
+
         // Check if coords are within the editor's visible area
-        const isInEditorViewport = coords.top >= scrollRect.top && 
+        const isInEditorViewport = coords.top >= scrollRect.top &&
                                   coords.top <= scrollRect.bottom &&
-                                  coords.left >= scrollRect.left && 
+                                  coords.left >= scrollRect.left &&
                                   coords.left <= scrollRect.right;
-        
+
         // Check if coords are within the parent container's visible area
         const isInParentViewport = !domRect || (
-          coords.top >= domRect.top && 
+          coords.top >= domRect.top &&
           coords.top <= domRect.bottom &&
-          coords.left >= domRect.left && 
+          coords.left >= domRect.left &&
           coords.left <= domRect.right
         );
 
         // Hide tooltip if selection is not visible in either viewport
         if (!isInEditorViewport || !isInParentViewport) {
           this.dom.style.display = "none";
-          this.dom.ariaHidden = "true";
+          this.dom.setAttribute('aria-hidden', "true");
           return;
         }
 
         this.dom.style.display = "flex";
+        this.dom.setAttribute('aria-hidden', "false");
 
         // These measurements are definitely slow and we don't want to
         // do them very often! We may want to cache these in the future.
@@ -175,12 +189,12 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
         this.dom.style.top = `${top}px`;
         requestAnimationFrame(() => {
           if (this.dom) {
-            this.dom.ariaHidden = "false";
+            this.dom.setAttribute('aria-hidden', "false");
           }
         });
       } else {
         this.dom.style.display = "none";
-        this.dom.ariaHidden = "true";
+        this.dom.setAttribute('aria-hidden', "true");
       }
     };
 

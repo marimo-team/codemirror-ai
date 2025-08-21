@@ -16,6 +16,7 @@ import { nextEditPrediction } from "../src/next-edit-prediction/extension.js";
 import { CURSOR_MARKER } from "../src/next-edit-prediction/types.js";
 import { insertDiffText } from "../src/next-edit-prediction/utils.js";
 import { promptHistory, storePrompt } from "../src/prompt-history/extension.js";
+import { triggerOptions } from "../src/index.js";
 
 const logger = console;
 
@@ -291,6 +292,9 @@ const decorationsPlugin = ViewPlugin.fromClass(
         logger.log({ selection, codeBefore, codeAfter, prompt });
         return `# Adding a TODO: \n# ${prompt}`;
       },
+    }),
+    triggerOptions.of({
+      hideOnBlur: true,
     }),
     tooltips(),
   ];
