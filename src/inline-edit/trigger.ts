@@ -29,7 +29,10 @@ export function defaultTriggerRenderer(view: EditorView) {
   // behavior (dragging to cancel the click)
   tooltip.querySelector("span")?.addEventListener("mousedown", (evt) => {
     evt.stopPropagation();
-    evt.preventDefault();
+    // Only prevent default for left mouse button to avoid interfering with selection/drag
+    if (evt.button === 0) {
+      evt.preventDefault();
+    }
   });
   tooltip.querySelector("span")?.addEventListener("click", (evt) => {
     evt.preventDefault();
