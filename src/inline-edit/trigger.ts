@@ -63,6 +63,18 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
       this.suppress = false;
       this.display(this.view);
     };
+    /**
+     * When the editor scrolls, update tooltip position
+     */
+    scroll = () => {
+      this.display(this.view);
+    };
+    /**
+     * When any element scrolls, update tooltip position
+     */
+    windowScroll = () => {
+      this.display(this.view);
+    };
 
     /**
      * Attach listeners and construct the initial view
@@ -71,8 +83,11 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
     constructor(public view: EditorView) {
       const options = view.state.facet(triggerOptions);
       this.suppress = false;
+      
       document.addEventListener("mousedown", this.mousedown);
       document.addEventListener("mouseup", this.mouseup);
+      view.scrollDOM.addEventListener("scroll", this.scroll);
+      window.addEventListener("scroll", this.windowScroll, true);
 
       const tooltip = options.render(view);
       view.dom.appendChild(tooltip);
@@ -109,13 +124,36 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
         const coords = view.coordsAtPos(range.from);
         if (!coords) return;
 
+        // Check if the selection is visible in the viewport
+        const scrollRect = view.dom.getBoundingClientRect();
+        const domRect = view.dom.parentElement?.getBoundingClientRect();
+        
+        // Check if coords are within the editor's visible area
+        const isInEditorViewport = coords.top >= scrollRect.top && 
+                                  coords.top <= scrollRect.bottom &&
+                                  coords.left >= scrollRect.left && 
+                                  coords.left <= scrollRect.right;
+        
+        // Check if coords are within the parent container's visible area
+        const isInParentViewport = !domRect || (
+          coords.top >= domRect.top && 
+          coords.top <= domRect.bottom &&
+          coords.left >= domRect.left && 
+          coords.left <= domRect.right
+        );
+
+        // Hide tooltip if selection is not visible in either viewport
+        if (!isInEditorViewport || !isInParentViewport) {
+          this.dom.style.display = "none";
+          this.dom.ariaHidden = "true";
+          return;
+        }
+
         this.dom.style.display = "flex";
 
         // These measurements are definitely slow and we don't want to
         // do them very often! We may want to cache these in the future.
         const tooltipRect = this.dom.getBoundingClientRect();
-        const scrollRect = view.dom.getBoundingClientRect();
-        const domRect = view.dom.parentElement?.getBoundingClientRect();
 
         // The furthest right we want to place the tooltip, to avoid
         // it getting smushed
@@ -149,6 +187,8 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
     destroy() {
       document.removeEventListener("mousedown", this.mousedown);
       document.removeEventListener("mouseup", this.mouseup);
+      this.view.scrollDOM.removeEventListener("scroll", this.scroll);
+      window.removeEventListener("scroll", this.windowScroll, true);
       this.dom.remove();
     }
   },
