@@ -118,7 +118,7 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
       // Hide tooltip if hideOnBlur is enabled and editor doesn't have focus
       if (options.hideOnBlur && !view.hasFocus) {
         this.dom.style.display = "none";
-        this.dom.ariaHidden = "true";
+        this.dom.setAttribute('aria-hidden', "true");
         return;
       }
       view.requestMeasure({
@@ -158,12 +158,12 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
         // Hide tooltip if selection is not visible in either viewport
         if (!isInEditorViewport || !isInParentViewport) {
           this.dom.style.display = "none";
-          this.dom.ariaHidden = "true";
+          this.dom.setAttribute('aria-hidden', "true");
           return;
         }
 
         this.dom.style.display = "flex";
-        this.dom.ariaHidden = "false";
+        this.dom.setAttribute('aria-hidden', "false");
 
         // These measurements are definitely slow and we don't want to
         // do them very often! We may want to cache these in the future.
@@ -189,12 +189,12 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
         this.dom.style.top = `${top}px`;
         requestAnimationFrame(() => {
           if (this.dom) {
-            this.dom.ariaHidden = "false";
+            this.dom.setAttribute('aria-hidden', "false");
           }
         });
       } else {
         this.dom.style.display = "none";
-        this.dom.ariaHidden = "true";
+        this.dom.setAttribute('aria-hidden', "true");
       }
     };
 
