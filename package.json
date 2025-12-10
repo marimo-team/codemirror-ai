@@ -9,7 +9,7 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "https://github.com/marimo-team/codemirror-ai"
+    "url": "git+https://github.com/marimo-team/codemirror-ai.git"
   },
   "scripts": {
     "dev": "vite",
