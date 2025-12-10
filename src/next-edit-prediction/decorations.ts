@@ -370,10 +370,18 @@ export class ModifyWidget extends WidgetType {
       const lineEndPos = view.coordsAtPos(lineEnd);
       const tooltipRect = tooltip.getBoundingClientRect();
 
+      // Check if this is a single-line editor
+      const isSingleLine = view.state.doc.lines === 1;
+
       if (lineEndPos) {
         // Position to the right of the end of the line
         const left = lineEndPos.right + TOOLTIP_OFFSET_RIGHT;
-        const top = lineEndPos.top + (lineEndPos.bottom - lineEndPos.top - tooltipRect.height) / 2;
+
+        // For single-line editors, position above the line to avoid obscuring the cursor
+        // For multi-line editors, vertically center the tooltip on the line
+        const top = isSingleLine
+          ? lineEndPos.top - tooltipRect.height - 4
+          : lineEndPos.top + (lineEndPos.bottom - lineEndPos.top - tooltipRect.height) / 2;
 
         // Keep tooltip within viewport bounds
         const maxLeft = window.innerWidth - tooltipRect.width - 8;
@@ -386,7 +394,9 @@ export class ModifyWidget extends WidgetType {
         // Fallback to widget position if line end coords not available
         const rect = referenceElement.getBoundingClientRect();
         const left = rect.left + TOOLTIP_OFFSET_RIGHT;
-        const top = rect.top + (rect.height - tooltipRect.height) / 2;
+        const top = isSingleLine
+          ? rect.top - tooltipRect.height - 4
+          : rect.top + (rect.height - tooltipRect.height) / 2;
 
         const maxLeft = window.innerWidth - tooltipRect.width - 8;
         const finalLeft = Math.min(left, maxLeft);
