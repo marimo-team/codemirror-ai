@@ -27,11 +27,10 @@ jobs:
         with:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
-          always-auth: true
           cache: pnpm
 
       - name: ⎔ Upgrade npm for OIDC support
-        run: pnpm install -g npm@latest
+        run: npm install -g npm@latest
 
       - name: 📥 Install dependencies
         run: pnpm install --frozen-lockfile
