@@ -137,27 +137,31 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
     #onRead = (view: EditorView) => {
       const range = view.state.selection.ranges.find((range) => !range.empty);
       if (range && !this.suppress) {
-        // Coords here are relative to the scrollable document.
-        const coords = view.coordsAtPos(range.from);
-        if (!coords) return;
+        const fromCoords = view.coordsAtPos(range.from);
+        const toCoords = view.coordsAtPos(range.to);
+        if (!fromCoords || !toCoords) return;
 
         // Check if the selection is visible in the viewport
         const scrollRect = view.dom.getBoundingClientRect();
         const domRect = view.dom.parentElement?.getBoundingClientRect();
 
-        // Check if coords are within the editor's visible area
-        const isInEditorViewport = coords.top >= scrollRect.top &&
-                                  coords.top <= scrollRect.bottom &&
-                                  coords.left >= scrollRect.left &&
-                                  coords.left <= scrollRect.right;
+        // The selection is visible if either end is within the viewport
+        const isEndInEditor = (c: { top: number; left: number }) =>
+          c.top >= scrollRect.top &&
+          c.top <= scrollRect.bottom &&
+          c.left >= scrollRect.left &&
+          c.left <= scrollRect.right;
 
-        // Check if coords are within the parent container's visible area
-        const isInParentViewport = !domRect || (
-          coords.top >= domRect.top &&
-          coords.top <= domRect.bottom &&
-          coords.left >= domRect.left &&
-          coords.left <= domRect.right
-        );
+        const isEndInParent = (c: { top: number; left: number }) =>
+          !domRect || (
+            c.top >= domRect.top &&
+            c.top <= domRect.bottom &&
+            c.left >= domRect.left &&
+            c.left <= domRect.right
+          );
+
+        const isInEditorViewport = isEndInEditor(fromCoords) || isEndInEditor(toCoords);
+        const isInParentViewport = isEndInParent(fromCoords) || isEndInParent(toCoords);
 
         // Hide tooltip if selection is not visible in either viewport
         if (!isInEditorViewport || !isInParentViewport) {
@@ -179,14 +183,17 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
 
         // If the tooltip is slammed to the right side of the page,
         // pull it back so that it isn't quite as slammed.
-        const left = Math.min(coords.left, rightEdge);
+        const left = Math.min(fromCoords.left, rightEdge);
 
-        // If the tooltip is in the overscrolled area at the top,
-        // try to show it just at the top. This relies on the parent
-        // of the codemirror container, which is not an ideal
-        // strategy.
-        let top = coords.top - tooltipRect.height;
-        top = domRect ? Math.max(domRect.y, top) : top;
+        // Place the tooltip above the selection by default. If that
+        // would push it above the parent container (e.g. first line
+        // of a cell), flip it below the entire selection so it doesn't
+        // overlap the selected text.
+        let top = fromCoords.top - tooltipRect.height;
+        const minTop = domRect ? domRect.y : -Infinity;
+        if (top < minTop) {
+          top = toCoords.bottom;
+        }
 
         // Position and show the element
         this.dom.style.left = `${left}px`;
