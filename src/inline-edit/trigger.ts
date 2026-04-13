@@ -10,6 +10,8 @@ import { defaultKeymaps, inputState, optionsFacet } from "./state.js";
 interface TriggerOptions {
   render: (view: EditorView) => HTMLElement;
   hideOnBlur: boolean;
+  /** Label text shown on the trigger button. */
+  label: string;
 }
 
 /**
@@ -19,9 +21,10 @@ interface TriggerOptions {
 export function defaultTriggerRenderer(view: EditorView) {
   const options = view.state.facet(optionsFacet);
   const keymaps = { ...defaultKeymaps, ...options.keymaps };
+  const trigger = view.state.facet(triggerOptions);
   const dom = ce("div", "cm-ai-tooltip");
   const tooltip = dom.appendChild(ce("div", "cm-ai-tooltip-button"));
-  tooltip.innerHTML = `<span>Edit <span class="hotkey">${formatKeymap(keymaps.showInput)}</span></span>`;
+  tooltip.innerHTML = `<span>${trigger.label} <span class="hotkey">${formatKeymap(keymaps.showInput)}</span></span>`;
 
   // NOTE: preventing mousedown from propagating here prevents
   // the tooltip from being closed before it can be clicked, but
@@ -46,6 +49,7 @@ export const triggerOptions = Facet.define<Partial<TriggerOptions>, TriggerOptio
     return combineConfig(value, {
       render: defaultTriggerRenderer,
       hideOnBlur: false,
+      label: "Edit with AI",
     });
   },
 });
