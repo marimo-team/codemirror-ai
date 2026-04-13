@@ -181,19 +181,21 @@ export const triggerViewPlugin = ViewPlugin.fromClass(
         // do them very often! We may want to cache these in the future.
         const tooltipRect = this.dom.getBoundingClientRect();
 
+        // Prefer anchoring to the selection start; fall back to the
+        // visible end when the start has scrolled out of view.
+        const anchor = isEndInEditor(fromCoords) ? fromCoords : toCoords;
+
         // The furthest right we want to place the tooltip, to avoid
-        // it getting smushed
-        const rightEdge = scrollRect.width - tooltipRect.width;
+        // it getting smushed. Both anchor.left and scrollRect.right
+        // are in viewport coordinates (position: fixed).
+        const rightEdge = scrollRect.right - tooltipRect.width;
+        const left = Math.min(anchor.left, rightEdge);
 
-        // If the tooltip is slammed to the right side of the page,
-        // pull it back so that it isn't quite as slammed.
-        const left = Math.min(fromCoords.left, rightEdge);
-
-        // Place the tooltip above the selection by default. If that
+        // Place the tooltip above the anchor by default. If that
         // would push it above the parent container (e.g. first line
         // of a cell), flip it below the entire selection so it doesn't
         // overlap the selected text.
-        let top = fromCoords.top - tooltipRect.height;
+        let top = anchor.top - tooltipRect.height;
         const minTop = domRect ? domRect.y : -Infinity;
         if (top < minTop) {
           top = toCoords.bottom;
