@@ -24,7 +24,11 @@ export function defaultTriggerRenderer(view: EditorView) {
   const trigger = view.state.facet(triggerOptions);
   const dom = ce("div", "cm-ai-tooltip");
   const tooltip = dom.appendChild(ce("div", "cm-ai-tooltip-button"));
-  tooltip.innerHTML = `<span>${trigger.label} <span class="hotkey">${formatKeymap(keymaps.showInput)}</span></span>`;
+  const span = tooltip.appendChild(document.createElement("span"));
+  span.textContent = `${trigger.label} `;
+  const hotkey = span.appendChild(document.createElement("span"));
+  hotkey.className = "hotkey";
+  hotkey.textContent = formatKeymap(keymaps.showInput);
 
   // NOTE: preventing mousedown from propagating here prevents
   // the tooltip from being closed before it can be clicked, but
