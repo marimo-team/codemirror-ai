@@ -19,10 +19,10 @@ importers:
         specifier: 2.3.8
         version: 2.3.8
       '@codemirror/lang-python':
-        specifier: ^6.1.7
+        specifier: 6.2.0
         version: 6.2.0
       '@codemirror/view':
-        specifier: ^6.36.2
+        specifier: 6.36.7
         version: 6.36.7
       '@types/diff':
         specifier: 8.0.0
