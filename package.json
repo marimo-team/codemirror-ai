@@ -28,6 +28,7 @@
     "ai"
   ],
   "license": "Apache-2.0",
+  "packageManager": "pnpm@10.28.2",
   "peerDependencies": {
     "@codemirror/state": "^6",
     "@codemirror/view": "^6"
