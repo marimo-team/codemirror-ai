@@ -100,6 +100,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: ⎔ Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
       - name: 📝 Update Changelog
         run: npx changelogithub
         env:
@@ -113,6 +118,6 @@ jobs:
       - name: 📣 Notify release result
         uses: marimo-team/internal-gh-actions/release-notification@ba06d4db1f3c5c9b86983ce409e57196f8376777 # main
         with:
-          status: ${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}
+          status: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && 'failure' || 'success' }}
           slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL_RELEASES }}
           artifact-url: "https://npmjs.com/package/@marimo-team/codemirror-ai"
