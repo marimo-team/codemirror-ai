@@ -47,7 +47,11 @@ describe("inline-completion", () => {
 
     // Verify that fetchFn was called with the current state
     expect(mockFetchFn).toHaveBeenCalledTimes(1);
-    expect(mockFetchFn).toHaveBeenCalledWith(expect.any(EditorState), expect.any(AbortSignal), expect.any(EditorView));
+    expect(mockFetchFn).toHaveBeenCalledWith(
+      expect.any(EditorState),
+      expect.any(AbortSignal),
+      expect.any(EditorView),
+    );
   });
 
   it("should accept inline completion", async () => {

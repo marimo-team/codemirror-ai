@@ -2,6 +2,7 @@ import { python } from "@codemirror/lang-python";
 import { Prec, type Range } from "@codemirror/state";
 import { Decoration, type DecorationSet, keymap, tooltips, ViewPlugin } from "@codemirror/view";
 import { basicSetup, EditorView } from "codemirror";
+import { triggerOptions } from "../src/index.js";
 import { aiExtension } from "../src/inline-edit/inline-edit.js";
 import { PredictionBackend } from "../src/next-edit-prediction/backend.js";
 import {
@@ -16,7 +17,6 @@ import { nextEditPrediction } from "../src/next-edit-prediction/extension.js";
 import { CURSOR_MARKER } from "../src/next-edit-prediction/types.js";
 import { insertDiffText } from "../src/next-edit-prediction/utils.js";
 import { promptHistory, storePrompt } from "../src/prompt-history/extension.js";
-import { triggerOptions } from "../src/index.js";
 
 const logger = console;
 
