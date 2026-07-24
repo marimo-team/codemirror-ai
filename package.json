@@ -28,21 +28,21 @@
     "ai"
   ],
   "license": "Apache-2.0",
-  "packageManager": "pnpm@10.28.2",
+  "packageManager": "pnpm@10.34.5",
   "peerDependencies": {
     "@codemirror/state": "^6",
     "@codemirror/view": "^6"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.8",
+    "@biomejs/biome": "2.5.5",
     "@codemirror/lang-python": "^6.1.7",
     "@codemirror/view": "^6.36.2",
     "@types/diff": "8.0.0",
     "@vitest/coverage-v8": "3.2.4",
-    "codemirror": "6.0.1",
+    "codemirror": "6.0.2",
     "husky": "9.1.7",
     "jsdom": "26.1.0",
-    "lint-staged": "16.2.7",
+    "lint-staged": "16.4.0",
     "typescript": "5.9.3",
     "vite": "^7.0.0",
     "vitest": "3.2.4"
