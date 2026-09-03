@@ -4,7 +4,7 @@ export function invariant(condition: boolean, message: string): asserts conditio
   }
 }
 
-const modSymbols = { mac: "⌘", windows: "⊞ Win", default: "Ctrl" };
+const modSymbols = { mac: "⌘", windows: "Ctrl", default: "Ctrl" };
 
 export function getModSymbol() {
   const isMac = navigator.platform.startsWith("Mac");
