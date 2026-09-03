@@ -45,7 +45,7 @@
     "lint-staged": "16.2.7",
     "typescript": "5.9.3",
     "vite": "^7.0.0",
-    "vitest": "3.2.4"
+    "vitest": "3.2.6"
   },
   "files": [
     "dist"
