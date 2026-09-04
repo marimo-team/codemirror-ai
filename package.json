@@ -19,7 +19,7 @@
     "demo": "vite build",
     "build": "tsc",
     "prepublishOnly": "pnpm run typecheck && pnpm run test && pnpm run build",
-    "release": "pnpm version",
+    "release": "pnpm version --no-git-tag-version",
     "pre-commit": "lint-staged"
   },
   "keywords": [
