@@ -34,7 +34,7 @@
     "@codemirror/view": "^6"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.11",
+    "@biomejs/biome": "2.5.9",
     "@codemirror/lang-python": "^6.1.7",
     "@codemirror/view": "^6.36.2",
     "@types/diff": "8.0.0",

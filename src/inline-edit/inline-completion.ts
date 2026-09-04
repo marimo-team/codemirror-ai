@@ -339,4 +339,4 @@ function inlineCompletion(options: InlineSuggestionOptions) {
   ];
 }
 
-export { acceptInlineCompletion, rejectInlineCompletion, inlineCompletion, inlineCompletionKeymap };
+export { acceptInlineCompletion, inlineCompletion, inlineCompletionKeymap, rejectInlineCompletion };
