@@ -18,7 +18,6 @@ import {
   type ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
-import { debouncePromise } from "../utils.js";
 
 // Credit to https://github.com/saminzadeh/codemirror-extension-inline-suggestion
 // This is modified for some additional features:
@@ -38,8 +37,39 @@ const InlineSuggestionState = StateField.define<{ suggestion: null | string }>({
     const inlineSuggestion = tr.effects.find((e) => e.is(InlineSuggestionEffect));
     if (!tr.docChanged && !inlineSuggestion && !tr.selection) return value;
 
-    if (inlineSuggestion && tr.state.doc === inlineSuggestion.value.doc) {
+    if (
+      inlineSuggestion &&
+      tr.state.doc === inlineSuggestion.value.doc &&
+      tr.state.selection.main.head === inlineSuggestion.value.pos
+    ) {
       return { suggestion: inlineSuggestion.value.text };
+    }
+    if (
+      value.suggestion &&
+      tr.docChanged &&
+      tr.startState.selection.ranges.length === 1 &&
+      tr.startState.selection.main.empty &&
+      tr.state.selection.ranges.length === 1 &&
+      tr.state.selection.main.empty
+    ) {
+      const cursor = tr.startState.selection.main.head;
+      let inserted = "";
+      let count = 0;
+      let valid = true;
+      tr.changes.iterChanges((from, to, _fromB, _toB, text) => {
+        count++;
+        valid &&= from === cursor && to === cursor;
+        inserted = text.toString();
+      });
+      if (
+        valid &&
+        count === 1 &&
+        inserted &&
+        value.suggestion.startsWith(inserted) &&
+        tr.state.selection.main.head === cursor + inserted.length
+      ) {
+        return { suggestion: value.suggestion.slice(inserted.length) || null };
+      }
     }
     return { suggestion: null };
   },
@@ -51,6 +81,7 @@ const InlineSuggestionState = StateField.define<{ suggestion: null | string }>({
 const InlineSuggestionEffect = StateEffect.define<{
   text: string | null;
   doc: Text;
+  pos: number;
 }>();
 
 /**
@@ -104,7 +135,8 @@ type InlineSuggestionOptions = {
   /**
    * Function to fetch the suggestion.
    * @param state - The editor state.
-   * @param signal - The abort signal.
+   * @param signal - Aborted when the document or selection changes, focus is lost,
+   * or the editor is destroyed. Pass it to the underlying request.
    * @param view - The editor view.
    * @returns The suggestion.
    */
@@ -119,7 +151,9 @@ type InlineSuggestionOptions = {
   includeKeymap?: boolean;
   events?: SuggestionEvents;
   /**
-   * @default 10000 // 10 seconds
+   * Cache lifetime in milliseconds. Entries include the cursor position and
+   * the cache retains at most 20 nonempty suggestions.
+   * @default 1000
    */
   cacheTimeout?: number;
 };
@@ -148,7 +182,16 @@ class SuggestionCache {
   }
 
   set(key: string, value: string) {
+    if (!value) return;
+    for (const [cachedKey, entry] of this.cache) {
+      if (Date.now() - entry.timestamp > this.timeout) this.cache.delete(cachedKey);
+    }
+    this.cache.delete(key);
     this.cache.set(key, { result: value, timestamp: Date.now() });
+    if (this.cache.size > 20) {
+      const oldest = this.cache.keys().next().value;
+      if (oldest !== undefined) this.cache.delete(oldest);
+    }
   }
 }
 
@@ -159,64 +202,74 @@ const fetchSuggestion = (fetchFn: InlineFetchFn, options: InlineSuggestionOption
   ViewPlugin.fromClass(
     class Plugin {
       abortController: AbortController | null = null;
+      timer: ReturnType<typeof setTimeout> | null = null;
       cache: SuggestionCache;
-
       constructor() {
         this.cache = new SuggestionCache(options.cacheTimeout ?? 1000);
       }
-
-      async update(update: ViewUpdate) {
-        if (!update.docChanged) return;
-
-        // Check if we should fetch
-        if (options.events?.beforeSuggestionFetch?.(update.view) === false) {
-          return;
-        }
-
-        // Cancel previous request
+      cancel() {
+        if (this.timer !== null) clearTimeout(this.timer);
+        this.timer = null;
         this.abortController?.abort();
-        this.abortController = new AbortController();
-
-        const doc = update.state.doc;
-        const cacheKey = doc.toString();
-
-        // Check cache first
-        const cached = this.cache.get(cacheKey);
-        if (cached) {
-          update.view.dispatch({
-            effects: InlineSuggestionEffect.of({ text: cached, doc }),
-          });
-          return;
-        }
-
-        try {
-          const result = await fetchFn(update.state, this.abortController.signal, update.view);
-          // Only update if not aborted
-          if (this.abortController.signal.aborted) {
-            return;
-          }
-
-          if (options.events?.shouldShowSuggestion?.(update.view, result) === false) {
-            return;
-          }
-
-          this.cache.set(cacheKey, result);
-          update.view.dispatch({
-            effects: InlineSuggestionEffect.of({ text: result, doc }),
-          });
-        } catch (err) {
-          if (err instanceof Error && err.name !== "AbortError") {
-            console.error("Suggestion fetch error:", err);
-          }
-        }
+        this.abortController = null;
       }
-
+      update(update: ViewUpdate) {
+        const rejected = update.transactions.some((tr) =>
+          tr.effects.some(
+            (effect) => effect.is(InlineSuggestionEffect) && effect.value.text === null,
+          ),
+        );
+        if (
+          !update.docChanged &&
+          !update.selectionSet &&
+          !rejected &&
+          !(update.focusChanged && !update.view.hasFocus)
+        )
+          return;
+        this.cancel();
+        if (
+          !update.docChanged ||
+          update.state.field(InlineSuggestionState).suggestion ||
+          !update.state.selection.main.empty ||
+          update.state.selection.ranges.length !== 1 ||
+          options.events?.beforeSuggestionFetch?.(update.view) === false
+        )
+          return;
+        const controller = new AbortController();
+        this.abortController = controller;
+        const doc = update.state.doc;
+        const pos = update.state.selection.main.head;
+        const cacheKey = JSON.stringify([doc.toString(), pos]);
+        const cached = this.cache.get(cacheKey);
+        const run = async () => {
+          if (controller.signal.aborted) return;
+          try {
+            const result = cached ?? (await fetchFn(update.state, controller.signal, update.view));
+            if (
+              controller.signal.aborted ||
+              update.view.state.doc !== doc ||
+              update.view.state.selection.main.head !== pos ||
+              options.events?.shouldShowSuggestion?.(update.view, result) === false
+            )
+              return;
+            this.cache.set(cacheKey, result);
+            update.view.dispatch({
+              effects: InlineSuggestionEffect.of({ text: result, doc, pos }),
+            });
+          } catch (err) {
+            if (!controller.signal.aborted && err instanceof Error && err.name !== "AbortError") {
+              console.error("Suggestion fetch error:", err);
+            }
+          }
+        };
+        // Dispatching a cached suggestion must also happen outside the view update.
+        this.timer = setTimeout(run, cached ? 0 : (options.delay ?? 500));
+      }
       destroy() {
-        this.abortController?.abort();
+        this.cancel();
       }
     },
   );
-
 /**
  * Plugin that renders the inline suggestion
  */
@@ -302,7 +355,11 @@ const rejectInlineCompletion: Command = (view: EditorView) => {
   const config = view.state.facet(inlineCompletionConfig);
 
   view.dispatch({
-    effects: InlineSuggestionEffect.of({ text: null, doc: view.state.doc }),
+    effects: InlineSuggestionEffect.of({
+      text: null,
+      doc: view.state.doc,
+      pos: view.state.selection.main.head,
+    }),
   });
 
   // Trigger event
@@ -327,13 +384,12 @@ const inlineCompletionConfig = Facet.define<InlineSuggestionOptions, InlineSugge
  * Creates an inline completion extension with the given options
  */
 function inlineCompletion(options: InlineSuggestionOptions) {
-  const { delay = 500, includeKeymap = true } = options;
-  const fetchFn = debouncePromise(options.fetchFn, delay);
+  const { includeKeymap = true } = options;
 
   return [
     InlineSuggestionState,
     inlineCompletionConfig.of(options),
-    fetchSuggestion(fetchFn, options),
+    fetchSuggestion(options.fetchFn, options),
     renderInlineSuggestionPlugin,
     includeKeymap ? inlineCompletionKeymap : [],
   ];
