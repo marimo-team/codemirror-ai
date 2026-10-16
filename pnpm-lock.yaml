@@ -46,7 +46,7 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vite:
-        specifier: ^7.3.6
+        specifier: 7.3.6
         version: 7.3.6(@types/node@22.13.1)(yaml@2.8.2)
       vitest:
         specifier: 3.2.7
