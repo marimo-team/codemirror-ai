@@ -27,10 +27,8 @@ describe("inline completion lifecycle", () => {
   }
 
   function type(text: string) {
-    const from = view.state.selection.main.head;
     view.dispatch({
-      changes: { from, insert: text },
-      selection: { anchor: from + text.length },
+      ...view.state.replaceSelection(text),
       userEvent: "input.type",
     });
   }
@@ -139,12 +137,18 @@ describe("inline completion lifecycle", () => {
     create();
     await show();
     view.dispatch({
-      selection: EditorSelection.create([EditorSelection.cursor(0), EditorSelection.cursor(4)]),
+      selection: EditorSelection.create([EditorSelection.cursor(0), EditorSelection.cursor(4)], 1),
     });
     type("t");
-    view.dispatch({
-      selection: EditorSelection.create([EditorSelection.cursor(0), EditorSelection.cursor(5)]),
+    expect(view.state.doc.toString()).toBe("tprint");
+    expect(view.state.selection.toJSON()).toEqual({
+      ranges: [
+        { anchor: 1, head: 1 },
+        { anchor: 6, head: 6 },
+      ],
+      main: 1,
     });
+    expect(suggestion()).toBeNull();
     await vi.advanceTimersByTimeAsync(150);
     expect(suggestion()).toBeNull();
     expect(fetchFn).toHaveBeenCalledTimes(1);
