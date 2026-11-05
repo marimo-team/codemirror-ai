@@ -36,8 +36,8 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.9",
     "@codemirror/lang-python": "6.2.1",
-    "@codemirror/state": "6.7.1",
-    "@codemirror/view": "6.43.9",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.15",
     "@types/diff": "8.0.0",
     "@types/node": "24.19.1",
     "@vitest/coverage-v8": "4.1.11",
