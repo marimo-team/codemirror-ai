@@ -10,7 +10,7 @@ permissions: {}
 jobs:
   build:
     name: 🏗️ Build
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -42,7 +42,7 @@ jobs:
   deploy:
     name: 🚀 Deploy
     needs: build
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     permissions:
       pages: write
       id-token: write
