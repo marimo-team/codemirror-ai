@@ -159,28 +159,9 @@ pnpm test
 pnpm dev
 ```
 
-## Release
+## Releases
 
-Prepare the version on a branch. The release command changes `package.json` but does not create a tag.
-
-```bash
-git switch -c release/vX.Y.Z
-pnpm release X.Y.Z
-git add package.json
-git commit -m "chore: release vX.Y.Z"
-git push -u origin release/vX.Y.Z
-```
-
-Open and merge a pull request. Then create the tag from the updated `main` branch.
-
-```bash
-git switch main
-git pull --ff-only
-git tag -a vX.Y.Z -m "vX.Y.Z"
-git push origin vX.Y.Z
-```
-
-The tag starts the release workflow. The workflow checks the tag and publishes the package to npm.
+See [RELEASING.md](RELEASING.md).
 
 ## License
 
